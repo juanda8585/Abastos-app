@@ -1,2 +1,6 @@
 node_modules/
+database/abastos.db
+database/abastos.db-shm
+database/abastos.db-wal
 .env
+*.log
