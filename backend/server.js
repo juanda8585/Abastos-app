@@ -16,7 +16,13 @@ app.get('/', (req, res) => res.json({ status: '✅ Bubalá API corriendo', port:
 // ══════════════════════════════════════════════════════════════════
 app.get('/api/entradas', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM entradas ORDER BY fecha DESC, id DESC').all();
+    const { desde, hasta, limit = 50 } = req.query;
+    const lim = Math.min(Math.max(parseInt(limit) || 50, 1), 10000);
+    const where = []; const params = [];
+    if (desde) { where.push('fecha >= ?'); params.push(desde); }
+    if (hasta) { where.push('fecha <= ?'); params.push(hasta); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const rows = db.prepare(`SELECT * FROM entradas ${w} ORDER BY fecha DESC, id DESC LIMIT ?`).all(...params, lim);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -45,13 +51,19 @@ app.delete('/api/entradas/:id', (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 app.get('/api/produccion', (req, res) => {
   try {
+    const { desde, hasta, limit = 50 } = req.query;
+    const lim = Math.min(Math.max(parseInt(limit) || 50, 1), 10000);
+    const where = []; const params = [];
+    if (desde) { where.push('fecha_elab >= ?'); params.push(desde); }
+    if (hasta) { where.push('fecha_elab <= ?'); params.push(hasta); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
     // Alias fecha_elab / fecha_venc to camelCase so the frontend works as-is
     const rows = db.prepare(`
       SELECT id, lote, sabor, bolsas, kilos,
              fecha_elab AS fechaElab, fecha_venc AS fechaVenc,
              empleada, obs, vendidas
-      FROM produccion ORDER BY fecha_elab DESC, id DESC
-    `).all();
+      FROM produccion ${w} ORDER BY fecha_elab DESC, id DESC LIMIT ?
+    `).all(...params, lim);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -81,7 +93,13 @@ app.delete('/api/produccion/:id', (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 app.get('/api/ventas', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM ventas_pulpa ORDER BY fecha DESC, id DESC').all();
+    const { desde, hasta, limit = 50 } = req.query;
+    const lim = Math.min(Math.max(parseInt(limit) || 50, 1), 10000);
+    const where = []; const params = [];
+    if (desde) { where.push('fecha >= ?'); params.push(desde); }
+    if (hasta) { where.push('fecha <= ?'); params.push(hasta); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const rows = db.prepare(`SELECT * FROM ventas_pulpa ${w} ORDER BY fecha DESC, id DESC LIMIT ?`).all(...params, lim);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -110,7 +128,13 @@ app.delete('/api/ventas/:id', (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 app.get('/api/gastos', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM gastos_app ORDER BY fecha DESC, id DESC').all();
+    const { desde, hasta, limit = 50 } = req.query;
+    const lim = Math.min(Math.max(parseInt(limit) || 50, 1), 10000);
+    const where = []; const params = [];
+    if (desde) { where.push('fecha >= ?'); params.push(desde); }
+    if (hasta) { where.push('fecha <= ?'); params.push(hasta); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const rows = db.prepare(`SELECT * FROM gastos_app ${w} ORDER BY fecha DESC, id DESC LIMIT ?`).all(...params, lim);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

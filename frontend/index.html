@@ -120,6 +120,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none !important;}
 
 /* ── TABLA ── */
+.filter-bar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--borde);}
+.filter-bar label{font-size:.72rem;font-weight:600;color:var(--gris);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
+.filter-bar .form-input{padding:7px 10px;font-size:.83rem;width:auto;}
+.filter-bar select.form-input{min-width:80px;}
+.filter-bar .btn{padding:8px 16px;font-size:.83rem;}
+.filter-info{font-size:.75rem;color:var(--gris);margin-left:auto;align-self:center;}
 .tabla-wrap{overflow-x:auto;border-radius:12px;border:1.5px solid var(--borde);}
 table{width:100%;border-collapse:collapse;font-size:.83rem;}
 thead tr{background:var(--negro);}
@@ -345,6 +351,13 @@ tr:hover td{background:#FFFDF0;}
     </div>
     <div class="card">
       <div class="card-title">Historial de entradas</div>
+      <div class="filter-bar">
+        <div><label>Desde</label><input type="date" id="f_entrada_desde" class="form-input"/></div>
+        <div><label>Hasta</label><input type="date" id="f_entrada_hasta" class="form-input"/></div>
+        <div><label>Límite</label><select id="f_entrada_limit" class="form-input form-select"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></div>
+        <button class="btn btn-ghost" onclick="filtrarSeccion('entrada')">🔍 Filtrar</button>
+        <span class="filter-info" id="f_entrada_info"></span>
+      </div>
       <div class="tabla-wrap">
         <table>
           <thead><tr><th>Fecha</th><th>Fruta</th><th>Kilos</th><th>Costo</th><th>$/kg</th><th>Proveedor</th><th>Obs.</th></tr></thead>
@@ -406,6 +419,13 @@ tr:hover td{background:#FFFDF0;}
     </div>
     <div class="card">
       <div class="card-title">Historial de producción</div>
+      <div class="filter-bar">
+        <div><label>Desde (elaboración)</label><input type="date" id="f_produccion_desde" class="form-input"/></div>
+        <div><label>Hasta</label><input type="date" id="f_produccion_hasta" class="form-input"/></div>
+        <div><label>Límite</label><select id="f_produccion_limit" class="form-input form-select"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></div>
+        <button class="btn btn-ghost" onclick="filtrarSeccion('produccion')">🔍 Filtrar</button>
+        <span class="filter-info" id="f_produccion_info"></span>
+      </div>
       <div class="tabla-wrap">
         <table>
           <thead><tr><th>Lote</th><th>Sabor</th><th>Bolsas</th><th>Kilos</th><th>Elaboración</th><th>Vencimiento</th><th>Empleada</th><th>Estado</th></tr></thead>
@@ -468,6 +488,13 @@ tr:hover td{background:#FFFDF0;}
     </div>
     <div class="card">
       <div class="card-title">Historial de ventas</div>
+      <div class="filter-bar">
+        <div><label>Desde</label><input type="date" id="f_ventas_desde" class="form-input"/></div>
+        <div><label>Hasta</label><input type="date" id="f_ventas_hasta" class="form-input"/></div>
+        <div><label>Límite</label><select id="f_ventas_limit" class="form-input form-select"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></div>
+        <button class="btn btn-ghost" onclick="filtrarSeccion('ventas')">🔍 Filtrar</button>
+        <span class="filter-info" id="f_ventas_info"></span>
+      </div>
       <div class="tabla-wrap">
         <table>
           <thead><tr><th>Fecha</th><th>Sabor</th><th>Cant.</th><th>Precio/u</th><th>Total</th><th>Cliente</th><th>Canal</th></tr></thead>
@@ -512,6 +539,13 @@ tr:hover td{background:#FFFDF0;}
     </div>
     <div class="card">
       <div class="card-title">Historial de gastos</div>
+      <div class="filter-bar">
+        <div><label>Desde</label><input type="date" id="f_gastos_desde" class="form-input"/></div>
+        <div><label>Hasta</label><input type="date" id="f_gastos_hasta" class="form-input"/></div>
+        <div><label>Límite</label><select id="f_gastos_limit" class="form-input form-select"><option value="50">50</option><option value="100">100</option><option value="200">200</option></select></div>
+        <button class="btn btn-ghost" onclick="filtrarSeccion('gastos')">🔍 Filtrar</button>
+        <span class="filter-info" id="f_gastos_info"></span>
+      </div>
       <div class="tabla-wrap">
         <table>
           <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Valor</th></tr></thead>
@@ -594,6 +628,9 @@ const API = 'http://localhost:3001/api';
 // ── Estado global en memoria (cargado desde la API) ──────────
 const STATE = { entradas: [], produccion: [], ventas: [], gastos: [] };
 
+// ── Vistas filtradas por sección (historial) ─────────────────
+const VISTAS = { entrada: [], produccion: [], ventas: [], gastos: [] };
+
 // ── Constantes ───────────────────────────────────────────────
 const SABORES = ['Mora','Fresa','Lulo','Piña','Mango','Uva','Guanábana','Maracuyá','Tom Árbol','Papaya','Curuba','Feijoa'];
 const COLORES_SABOR = {
@@ -608,16 +645,67 @@ const fmtFecha = d => { if(!d) return '—'; const [y,m,dia] = d.split('-'); ret
 const cop = n => '$' + Number(n||0).toLocaleString('es-CO');
 const slugSabor = s => s.toLowerCase().replace(/ /g,'').replace(/á/g,'a').replace(/é/g,'e').replace(/ó/g,'o').replace(/ú/g,'u');
 
+// ── Helpers de filtro de fecha ────────────────────────────────
+function defaultDesde() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString().split('T')[0];
+}
+
+function initFiltros(seccion) {
+  const desdeEl = document.getElementById(`f_${seccion}_desde`);
+  const hastaEl = document.getElementById(`f_${seccion}_hasta`);
+  if (!desdeEl || desdeEl.value) return; // ya inicializado
+  desdeEl.value = defaultDesde();
+  hastaEl.value = hoy();
+}
+
+async function cargarVista(seccion) {
+  const desdeEl = document.getElementById(`f_${seccion}_desde`);
+  const hastaEl = document.getElementById(`f_${seccion}_hasta`);
+  const limitEl = document.getElementById(`f_${seccion}_limit`);
+  const infoEl  = document.getElementById(`f_${seccion}_info`);
+  const desde   = desdeEl ? desdeEl.value : '';
+  const hasta   = hastaEl ? hastaEl.value : '';
+  const limit   = limitEl ? limitEl.value : 50;
+  const endpoint = seccion === 'entrada' ? 'entradas' : seccion;
+  const params = new URLSearchParams();
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  params.set('limit', limit);
+  try {
+    const data = await fetch(`${API}/${endpoint}?${params}`).then(r => r.json());
+    VISTAS[seccion] = Array.isArray(data) ? data : [];
+    if (infoEl) infoEl.textContent = `${VISTAS[seccion].length} registros`;
+  } catch(e) {
+    console.error(`Error cargando ${seccion}:`, e);
+    VISTAS[seccion] = [];
+  }
+}
+
+async function filtrarSeccion(seccion) {
+  await cargarVista(seccion);
+  if (seccion === 'entrada')    renderEntrada();
+  if (seccion === 'produccion') renderProduccion();
+  if (seccion === 'ventas')     renderVentas();
+  if (seccion === 'gastos')     renderGastos();
+}
+
+async function initSeccion(seccion) {
+  initFiltros(seccion);
+  await cargarVista(seccion);
+}
+
 // ════════════════════════════════════════════════════════════
 //  CAPA DE DATOS — fetch al backend
 // ════════════════════════════════════════════════════════════
 async function loadAll() {
   try {
     const [e, p, v, g] = await Promise.all([
-      fetch(`${API}/entradas`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch(`${API}/produccion`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch(`${API}/ventas`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch(`${API}/gastos`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${API}/entradas?limit=9999`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${API}/produccion?limit=9999`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${API}/ventas?limit=9999`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${API}/gastos?limit=9999`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
     ]);
     STATE.entradas  = Array.isArray(e) ? e : [];
     STATE.produccion = Array.isArray(p) ? p : [];
@@ -666,10 +754,10 @@ function showPage(id, btn) {
   }
   if(id==='dashboard')  renderDashboard();
   if(id==='inventario') renderInventario();
-  if(id==='entrada')    renderEntrada();
-  if(id==='produccion') renderProduccion();
-  if(id==='ventas')     renderVentas();
-  if(id==='gastos')     renderGastos();
+  if(id==='entrada')    initSeccion('entrada').then(renderEntrada);
+  if(id==='produccion') initSeccion('produccion').then(renderProduccion);
+  if(id==='ventas')     initSeccion('ventas').then(renderVentas);
+  if(id==='gastos')     initSeccion('gastos').then(renderGastos);
 }
 
 // ── Flash ────────────────────────────────────────────────────
@@ -702,6 +790,7 @@ async function guardarEntrada() {
     ['eF_sabor','eF_kilos','eF_costo','eF_proveedor','eF_obs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('eF_fecha').value = hoy();
     await loadAll();
+    await cargarVista('entrada');
     renderEntrada();
   } catch(e) {
     flash('err', 'Error al guardar: ' + e.message);
@@ -711,7 +800,7 @@ async function guardarEntrada() {
 }
 
 function renderEntrada() {
-  const data = [...STATE.entradas];
+  const data = [...VISTAS.entrada];
   const tbody = document.getElementById('tbodyEntrada');
   if(!data.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">Sin entradas registradas aún</td></tr>'; return; }
   tbody.innerHTML = data.map(e => `
@@ -750,6 +839,7 @@ async function guardarProduccion() {
     ['p_lote','p_sabor','p_bolsas','p_kilos','p_empleada','p_obs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('p_fechaElab').value = hoy();
     await loadAll();
+    await cargarVista('produccion');
     renderProduccion();
   } catch(e) {
     flash('err', 'Error al guardar: ' + e.message);
@@ -759,7 +849,7 @@ async function guardarProduccion() {
 }
 
 function renderProduccion() {
-  const data = [...STATE.produccion];
+  const data = [...VISTAS.produccion];
   const tbody = document.getElementById('tbodyProduccion');
   if(!data.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Sin producciones registradas aún</td></tr>'; return; }
   const hoyMs = new Date().getTime();
@@ -820,6 +910,7 @@ async function guardarVenta() {
     document.getElementById('v_fecha').value = hoy();
     document.getElementById('v_totalPreview').style.display = 'none';
     await loadAll();
+    await cargarVista('ventas');
     renderVentas();
   } catch(e) {
     flash('err', 'Error al guardar: ' + e.message);
@@ -829,7 +920,7 @@ async function guardarVenta() {
 }
 
 function renderVentas() {
-  const data = [...STATE.ventas];
+  const data = [...VISTAS.ventas];
   const tbody = document.getElementById('tbodyVentas');
   if(!data.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">Sin ventas registradas aún</td></tr>'; return; }
   tbody.innerHTML = data.map(v => `
@@ -863,6 +954,7 @@ async function guardarGasto() {
     ['g_desc','g_valor'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('g_fecha').value = hoy();
     await loadAll();
+    await cargarVista('gastos');
     renderGastos();
   } catch(e) {
     flash('err', 'Error al guardar: ' + e.message);
@@ -872,7 +964,7 @@ async function guardarGasto() {
 }
 
 function renderGastos() {
-  const data = [...STATE.gastos];
+  const data = [...VISTAS.gastos];
   const tbody = document.getElementById('tbodyGastos');
   if(!data.length) { tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999;padding:20px">Sin gastos registrados aún</td></tr>'; return; }
   tbody.innerHTML = data.map(g => `
