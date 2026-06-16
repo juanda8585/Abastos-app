@@ -8,4 +8,16 @@ router.post('/batches', productionController.createBatch);
 // POST /api/production/batches/:batchId/details
 router.post('/batches/:batchId/details', productionController.submitBatchDetails);
 
+// GET all batches
+router.get('/batches', productionController.getAllBatches);
+
+// GET a single batch with its aggregated items
+router.get('/batches/:batchId', productionController.getBatchById);
+
+// PUT (Update) a single batch item attribute set
+router.put('/items/:itemId', productionController.updateBatchItem);
+
+// DELETE a single batch item and its inventory history
+router.delete('/items/:itemId', productionController.deleteBatchItem);
+
 module.exports = router;

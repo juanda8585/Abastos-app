@@ -7,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Safe JSON Swagger Configuration ---
+// --- Complete JSON Swagger Configuration ---
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -23,6 +24,31 @@ const swaggerOptions = {
     ],
     paths: {
       '/api/production/batches': {
+        get: {
+          summary: 'Get all production batch headers',
+          description: 'Retrieves a list of all production batches ordered by creation date.',
+          responses: {
+            200: {
+              description: 'A list of batches',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer', example: 1 },
+                        employee_name: { type: 'string', example: 'John Doe' },
+                        created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            500: { description: 'Database query execution failure' }
+          }
+        },
         post: {
           summary: 'Create a new production batch header',
           description: 'Initializes a production batch with the responsible employee\'s name.',
@@ -34,10 +60,7 @@ const swaggerOptions = {
                   type: 'object',
                   required: ['employeeName'],
                   properties: {
-                    employeeName: {
-                      type: 'string',
-                      example: 'John Doe'
-                    }
+                    employeeName: { type: 'string', example: 'John Doe' }
                   }
                 }
               }
@@ -59,6 +82,52 @@ const swaggerOptions = {
               }
             },
             400: { description: 'Invalid input / Missing required fields' }
+          }
+        }
+      },
+      '/api/production/batches/{batchId}': {
+        get: {
+          summary: 'Get a single batch with all its nested items',
+          description: 'Fetches details for a specific batch, nesting all child items inside an array using database aggregation.',
+          parameters: [
+            {
+              in: 'path',
+              name: 'batchId',
+              required: true,
+              schema: { type: 'integer' },
+              description: 'The numeric ID of the production batch'
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Batch structure retrieved successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      batch_id: { type: 'integer', example: 1 },
+                      employee_name: { type: 'string', example: 'John Doe' },
+                      created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' },
+                      items: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            itemId: { type: 'integer', example: 5 },
+                            productId: { type: 'integer', example: 101 },
+                            quantityProduced: { type: 'integer', example: 50 },
+                            expirationDate: { type: 'string', format: 'date', example: '2026-12-31' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            404: { description: 'Production batch not found' },
+            500: { description: 'Database execution issue' }
           }
         }
       },
@@ -119,10 +188,96 @@ const swaggerOptions = {
             500: { description: 'Transaction aborted / Database error' }
           }
         }
+      },
+      '/api/production/items/{itemId}': {
+        put: {
+          summary: 'Update attributes of a single production item',
+          description: 'Modifies fields of a batch item and syncs the associated inventory entry within a database transaction.',
+          parameters: [
+            {
+              in: 'path',
+              name: 'itemId',
+              required: true,
+              schema: { type: 'integer' },
+              description: 'The specific item row identifier'
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    quantityProduced: { type: 'integer', example: 75 },
+                    expirationDate: { type: 'string', format: 'date', example: '2027-01-15' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: 'Item and movement updated successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      itemId: { type: 'integer', example: 5 },
+                      updatedValues: {
+                        type: 'object',
+                        properties: {
+                          batch_id: { type: 'integer', example: 1 },
+                          product_id: { type: 'integer', example: 101 },
+                          quantity_produced: { type: 'integer', example: 75 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: 'Missing items or invalid body values' },
+            404: { description: 'Batch item row not found' }
+          }
+        },
+        delete: {
+          summary: 'Delete a single item from a batch',
+          description: 'Removes the batch item record and deletes its corresponding ledger footprint inside inventory_movements via an atomic transaction.',
+          parameters: [
+            {
+              in: 'path',
+              name: 'itemId',
+              required: true,
+              schema: { type: 'integer' },
+              description: 'The specific item row identifier to delete'
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Item and linked inventory entries successfully cleared',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      message: { type: 'string', example: 'Item 5 and linked inventory cleared.' }
+                    }
+                  }
+                }
+              }
+            },
+            404: { description: 'Target batch item row not found' },
+            500: { description: 'Transaction execution failure' }
+          }
+        }
       }
     }
   },
-  apis: [] // We don't need to parse external files anymore
+  apis: []
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
