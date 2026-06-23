@@ -55,6 +55,15 @@ class ProductionService {
           `,
           [item.productId, item.quantityProduced, batchId]
         );
+
+        await client.query(
+          `
+          UPDATE stock_levels
+          SET current_stock = $1
+          WHERE product_id = $2
+          `,
+          [currentStock, productId]
+        );
       }
 
       await client.query('COMMIT');
@@ -123,61 +132,98 @@ class ProductionService {
   }
 
   /**
-   * Updates a single item's attributes and syncs the associated inventory movement
-   * @param {number} itemId - The ID of the item inside production_batch_items
-   * @param {Object} updates - Fields to update
-   * @param {number} updates.quantityProduced
-   * @param {string} updates.expirationDate
-   */
-  async updateBatchItem(itemId, updates) {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+ * Updates a single item's attributes and syncs inventory correctly (immutable movements)
+ */
+async updateBatchItem(itemId, updates) {
+  const client = await this.pool.connect();
 
-      // 1. Update the production batch item row and get back critical identifiers
-      const updateItemQuery = `
-        UPDATE production_batch_items
-        SET quantity_produced = COALESCE($1, quantity_produced),
-            expiration_date = COALESCE($2, expiration_date)
-        WHERE id = $3
-        RETURNING batch_id, product_id, quantity_produced;
-      `;
-      const itemResult = await client.query(updateItemQuery, [
-        updates.quantityProduced,
-        updates.expirationDate,
-        itemId
-      ]);
+  try {
+    await client.query('BEGIN');
 
-      if (itemResult.rowCount === 0) {
-        throw new Error(`Batch item with ID ${itemId} not found.`);
-      }
+    // 1. Get current item state
+    const currentItemResult = await client.query(
+      `
+      SELECT batch_id, product_id, quantity_produced
+      FROM production_batch_items
+      WHERE id = $1
+      `,
+      [itemId]
+    );
 
-      const updatedItem = itemResult.rows[0];
-
-      // 2. Adjust the inventory movement matching this product reference transaction
-      if (updates.quantityProduced !== undefined) {
-        const updateMovementQuery = `
-          UPDATE inventory_movements
-          SET quantity = $1
-          WHERE reference_id = $2 AND product_id = $3 AND type = 'production';
-        `;
-        await client.query(updateMovementQuery, [
-          updatedItem.quantity_produced,
-          updatedItem.batch_id,
-          updatedItem.product_id
-        ]);
-      }
-
-      await client.query('COMMIT');
-      return { success: true, itemId, updatedValues: updatedItem };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error(`Transaction aborted while updating item ${itemId}:`, error);
-      throw new Error(`Update item transaction failed: ${error.message}`);
-    } finally {
-      client.release();
+    if (currentItemResult.rowCount === 0) {
+      throw new Error(`Batch item with ID ${itemId} not found.`);
     }
+
+    const currentItem = currentItemResult.rows[0];
+
+    const oldQty = currentItem.quantity_produced;
+    const newQty =
+      updates.quantityProduced !== undefined
+        ? updates.quantityProduced
+        : oldQty;
+
+    const difference = newQty - oldQty;
+
+    // 2. Update batch item
+    const updateItemQuery = `
+      UPDATE production_batch_items
+      SET quantity_produced = COALESCE($1, quantity_produced),
+          expiration_date = COALESCE($2, expiration_date)
+      WHERE id = $3
+      RETURNING batch_id, product_id, quantity_produced;
+    `;
+
+    const itemResult = await client.query(updateItemQuery, [
+      updates.quantityProduced,
+      updates.expirationDate,
+      itemId
+    ]);
+
+    const updatedItem = itemResult.rows[0];
+
+    // 3. Update stock levels using delta (NOT overwrite)
+    if (difference !== 0) {
+      await client.query(
+        `
+        UPDATE stock_levels
+        SET current_stock = current_stock + $1
+        WHERE product_id = $2
+        `,
+        [difference, currentItem.product_id]
+      );
+
+      // 4. Insert audit movement (IMPORTANT: do NOT update old ones)
+      await client.query(
+        `
+        INSERT INTO inventory_movements
+        (product_id, quantity, type, reference_id)
+        VALUES ($1, $2, $3, $4)
+        `,
+        [
+          currentItem.product_id,
+          difference,
+          'adjustment',
+          currentItem.batch_id
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      success: true,
+      itemId,
+      updatedValues: updatedItem,
+      stockAdjustment: difference
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(`Transaction aborted while updating item ${itemId}:`, error);
+    throw new Error(`Update item transaction failed: ${error.message}`);
+  } finally {
+    client.release();
   }
+}
 
   /**
    * Deletes a single item from a batch and purges its inventory transaction entry
