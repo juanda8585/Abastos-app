@@ -1,10 +1,18 @@
 const express = require('express');
+const cors = require('cors'); // 1. Import the package
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const productionRoutes = require('./routes/production');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 2. Enable CORS globally for all incoming requests
+app.use(cors({
+  origin: '*', // Allows access from any machine/port (Perfect for development)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // --- Safe JSON Swagger Configuration ---
 // --- Complete JSON Swagger Configuration ---
@@ -285,7 +293,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // ---------------------------------------
 
 app.use(express.json());
-app.use('/api/production', productionRoutes);
+app.use('/api', productionRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

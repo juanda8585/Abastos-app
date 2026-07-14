@@ -8,6 +8,8 @@ router.post('/batches', productionController.createBatch);
 // POST /api/production/batches/:batchId/details
 router.post('/batches/:batchId/details', productionController.submitBatchDetails);
 
+router.post('/batches/:batchId/items', productionController.submitBatchDetails);
+
 // GET all batches
 router.get('/batches', productionController.getAllBatches);
 
