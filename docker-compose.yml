@@ -1,0 +1,47 @@
+services:
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: my_postgres_container
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      # Mount your local initialization script into the container's init folder
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      # Named volume to persist data so you don't lose it when the container stops
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend-api:
+    container_name: abastos-api
+    build: 
+      context: ./stock-api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres_db       # <-- FIX: Wait for the database to boot up first
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      # <-- FIX: Point to the 'postgres-db' service name instead of 127.0.0.1
+      - DATABASE_URL=postgresql://myuser:mysecretpassword@postgres_db:5432/mydatabase
+
+  # ADD THIS NEW FRONTEND BLOCK HERE
+  stock-frontend:
+    container_name: abastos-frontend
+    build:
+      context: ./stock-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80" # Map Nginx to standard web port 80
+    depends_on:
+      - backend-api
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+
+volumes:
+  postgres_data:
