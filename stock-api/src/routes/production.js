@@ -22,4 +22,10 @@ router.put('/items/:itemId', productionController.updateBatchItem);
 // DELETE a single batch item and its inventory history
 router.delete('/items/:itemId', productionController.deleteBatchItem);
 
+// GET all batches
+router.get('/products', productionController.getAllProducts);
+
+// GET all batches
+router.get('/stock', productionController.getStockLevels);
+
 module.exports = router;

@@ -43,5 +43,15 @@ export const productionApi = {
   deleteBatchItem: async (itemId) => {
     const response = await api.delete(`/api/batches/item/${itemId}`);
     return response.data;
+  },
+  // 1. GET /api/production -> Maps to your getAllProducts controller
+  getAllProducts: async () => {
+    const response = await api.get('/api/products');
+    return response.data;
+  },
+  // Fetch joined stock levels
+  getStockLevels: async () => {
+    const response = await api.get('/api/stock');
+    return response.data;
   }
 };

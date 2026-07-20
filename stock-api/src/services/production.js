@@ -58,11 +58,14 @@ class ProductionService {
 
         await client.query(
           `
-          UPDATE stock_levels
-          SET current_stock = $1
-          WHERE product_id = $2
+          INSERT INTO stock_levels (product_id, current_stock)
+          VALUES ($1, $2)
+          ON CONFLICT (product_id)
+          DO UPDATE
+          SET current_stock = stock_levels.current_stock + EXCLUDED.current_stock,
+              updated_at = CURRENT_TIMESTAMP;
           `,
-          [currentStock, productId]
+          [item.productId, item.quantityProduced]
         );
       }
 

@@ -1,7 +1,11 @@
 const pool = require('../config/database');
 const ProductionService = require('../services/production');
+const ProductService = require('../services/product');
+const StockService = require('../services/stock');
 
 const productionService = new ProductionService(pool);
+const productService = new ProductService(pool);
+const stockService = new StockService(pool);
 
 /**
  * Handles batch creation
@@ -120,6 +124,30 @@ async function deleteBatchItem(req, res, next) {
   }
 }
 
+/**
+ * Controller to fetch all current stock levels
+ */
+async function getStockLevels(req, res, next) {
+  try {
+    const stock = await stockService.getStockLevels();
+    return res.status(200).json(stock);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Handles fetching all products
+ */
+async function getAllProducts(req, res, next) {
+  try {
+    const products = await productService.getAllProducts();
+    return res.status(200).json(products);
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Ensure all definitions are safely mapped out here
 module.exports = {
   createBatch,
@@ -127,5 +155,7 @@ module.exports = {
   getAllBatches,
   getBatchById,
   updateBatchItem,
-  deleteBatchItem
+  deleteBatchItem,
+  getAllProducts,
+  getStockLevels
 };
