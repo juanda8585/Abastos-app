@@ -12,8 +12,9 @@ class ProductService {
    */
   async getAllProducts() {
     const queryText = `
-      SELECT id, name
-      FROM products;
+      SELECT id, sku, name, description, unit, list_price
+      FROM products
+      ORDER BY name ASC;
     `;
     try {
       const result = await this.pool.query(queryText);

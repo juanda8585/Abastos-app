@@ -1,57 +1,36 @@
 const express = require('express');
 const router = express.Router();
 const productionController = require('../controllers/production');
-const salesController = require('../controllers/sales'); // Import sales controller
-const customerController = require('../controllers/customer');
 
 // ==========================================
-// PRODUCTION ROUTES
+// PRODUCTION ROUTES (mounted at /api)
 // ==========================================
 
-// POST /api/production/batches
+// POST /api/batches - Create a production batch header
 router.post('/batches', productionController.createBatch);
 
-// POST /api/production/batches/:batchId/details
+// POST /api/batches/:batchId/details - Submit batch items and movements
 router.post('/batches/:batchId/details', productionController.submitBatchDetails);
 
+// POST /api/batches/:batchId/items - Alias of the details endpoint
 router.post('/batches/:batchId/items', productionController.submitBatchDetails);
 
-// GET all batches
+// GET /api/batches - All batch headers
 router.get('/batches', productionController.getAllBatches);
 
-// GET a single batch with its aggregated items
+// GET /api/batches/:batchId - A single batch with its aggregated items
 router.get('/batches/:batchId', productionController.getBatchById);
 
-// PUT (Update) a single batch item attribute set
+// PUT /api/items/:itemId - Update a single batch item attribute set
 router.put('/items/:itemId', productionController.updateBatchItem);
 
-// DELETE a single batch item and its inventory history
+// DELETE /api/items/:itemId - Delete a single batch item and its inventory history
 router.delete('/items/:itemId', productionController.deleteBatchItem);
 
-// GET all products
+// GET /api/products - All products
 router.get('/products', productionController.getAllProducts);
 
-// GET stock levels
+// GET /api/stock - Current stock levels
 router.get('/stock', productionController.getStockLevels);
-
-
-// ==========================================
-// SALES ROUTES
-// ==========================================
-
-// POST /api/sales - Create a new sale and deduct stock
-router.post('/sales', salesController.createSale);
-
-// GET /api/sales/:id - Fetch details for a specific sale
-router.get('/sales/:id', salesController.getSaleById);
-
-router.get('/sales', salesController.getAllSales);
-
-// POST /api/sales/:id/refund - Refund/Cancel sale and restore inventory
-router.post('/sales/:id/refund', salesController.refundSale);
-
-// GET /api/customers/active - Fetch active customers for POS/Sales dropdown
-router.get('/customers/active', customerController.getActiveCustomers);
-
 
 module.exports = router;

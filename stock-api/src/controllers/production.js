@@ -127,14 +127,14 @@ async function deleteBatchItem(req, res, next) {
 /**
  * Controller to fetch all current stock levels
  */
-  async function getStockLevels(req, res, next) {
-    try {
-      const stock = await stockService.getStockLevels();
-      return res.status(200).json(stock);
-    } catch (error) {
-      next(error);
-    }
+async function getStockLevels(req, res, next) {
+  try {
+    const stock = await stockService.getStockLevels();
+    return res.status(200).json(stock);
+  } catch (error) {
+    next(error);
   }
+}
 
 /**
  * Handles fetching all products

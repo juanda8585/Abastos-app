@@ -1,18 +1,18 @@
--- Insert products (no price column)
-INSERT INTO products (sku, name, description, unit) VALUES
-('MANGO', 'Pulpa de Mango', 'Pulpa natural de mango criollo, sin conservantes.', 'lb'),
-('GUAYABA', 'Pulpa de Guayaba', 'Pulpa de guayaba fresca, ideal para jugos y postres.', 'lb'),
-('MARACUYA', 'Pulpa de Maracuyá', 'Pulpa ácida y aromática de maracuyá, perfecta para bebidas.', 'lb'),
-('LULO', 'Pulpa de Lulo', 'Pulpa de lulo andino, sabor cítrico y refrescante.', 'lb'),
-('MORA', 'Pulpa de Mora', 'Pulpa de mora de Castilla, rica en antioxidantes.', 'lb'),
-('FRESA', 'Pulpa de Fresa', 'Pulpa de fresa dulce, sin azúcar añadida.', 'lb'),
-('GUANABANA', 'Pulpa de Guanábana', 'Pulpa cremosa de guanábana, ideal para smoothies.', 'lb'),
-('BANANO', 'Pulpa de Banano', 'Pulpa de banano dominico, espesa y natural.', 'lb'),
-('CURUBA', 'Pulpa de Curuba', 'Pulpa tropical de curuba (banano de monte), agridulce.', 'lb'),
-('NARANJA', 'Pulpa de Naranja', 'Pulpa concentrada de naranja valenciana.', 'lb'),
-('TOMATEARBOL', 'Pulpa de Tomate de Árbol', 'Pulpa concentrada de tomate de árbol.', 'lb'),
-('FREIJOA', 'Pulpa de Freijoa', 'Pulpa de Freijoa', 'lb'),
-('PINA', 'Pulpa de Piña', 'Pulpa de piña golden, dulce y refrescante.', 'lb');
+-- Insert products (list_price = default POS price per unit, in COP)
+INSERT INTO products (sku, name, description, unit, list_price) VALUES
+('MANGO', 'Pulpa de Mango', 'Pulpa natural de mango criollo, sin conservantes.', 'lb', 6500),
+('GUAYABA', 'Pulpa de Guayaba', 'Pulpa de guayaba fresca, ideal para jugos y postres.', 'lb', 5500),
+('MARACUYA', 'Pulpa de Maracuyá', 'Pulpa ácida y aromática de maracuyá, perfecta para bebidas.', 'lb', 7500),
+('LULO', 'Pulpa de Lulo', 'Pulpa de lulo andino, sabor cítrico y refrescante.', 'lb', 6000),
+('MORA', 'Pulpa de Mora', 'Pulpa de mora de Castilla, rica en antioxidantes.', 'lb', 6500),
+('FRESA', 'Pulpa de Fresa', 'Pulpa de fresa dulce, sin azúcar añadida.', 'lb', 8000),
+('GUANABANA', 'Pulpa de Guanábana', 'Pulpa cremosa de guanábana, ideal para smoothies.', 'lb', 7000),
+('BANANO', 'Pulpa de Banano', 'Pulpa de banano dominico, espesa y natural.', 'lb', 5000),
+('CURUBA', 'Pulpa de Curuba', 'Pulpa tropical de curuba (banano de monte), agridulce.', 'lb', 6500),
+('NARANJA', 'Pulpa de Naranja', 'Pulpa concentrada de naranja valenciana.', 'lb', 5500),
+('TOMATEARBOL', 'Pulpa de Tomate de Árbol', 'Pulpa concentrada de tomate de árbol.', 'lb', 7000),
+('FREIJOA', 'Pulpa de Freijoa', 'Pulpa de Freijoa', 'lb', 8500),
+('PINA', 'Pulpa de Piña', 'Pulpa de piña golden, dulce y refrescante.', 'lb', 6000);
 
 INSERT INTO customers (company_name, contact_name, phone, email, delivery_address, is_active)
 VALUES

@@ -3,6 +3,8 @@ const cors = require('cors'); // 1. Import the package
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const productionRoutes = require('./routes/production');
+const salesRoutes = require('./routes/sales');
+const customerRoutes = require('./routes/customers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,7 +33,7 @@ const swaggerOptions = {
       },
     ],
     paths: {
-      '/api/production/batches': {
+      '/api/batches': {
         get: {
           summary: 'Get all production batch headers',
           description: 'Retrieves a list of all production batches ordered by creation date.',
@@ -93,7 +95,7 @@ const swaggerOptions = {
           }
         }
       },
-      '/api/production/batches/{batchId}': {
+      '/api/batches/{batchId}': {
         get: {
           summary: 'Get a single batch with all its nested items',
           description: 'Fetches details for a specific batch, nesting all child items inside an array using database aggregation.',
@@ -139,7 +141,7 @@ const swaggerOptions = {
           }
         }
       },
-      '/api/production/batches/{batchId}/details': {
+      '/api/batches/{batchId}/details': {
         post: {
           summary: 'Submit production batch items and movements',
           description: 'Processes an array of items, creates batch details, and logs inventory transactions via a DB transaction.',
@@ -197,7 +199,7 @@ const swaggerOptions = {
           }
         }
       },
-      '/api/production/items/{itemId}': {
+      '/api/items/{itemId}': {
         put: {
           summary: 'Update attributes of a single production item',
           description: 'Modifies fields of a batch item and syncs the associated inventory entry within a database transaction.',
@@ -282,6 +284,222 @@ const swaggerOptions = {
             500: { description: 'Transaction execution failure' }
           }
         }
+      },
+      '/api/sales': {
+        get: {
+          summary: 'Get sales history (paginated)',
+          description: 'Returns sales newest first, each with its aggregated line items and total amount.',
+          parameters: [
+            {
+              in: 'query',
+              name: 'limit',
+              schema: { type: 'integer', minimum: 1, maximum: 500, default: 100 },
+              description: 'Page size'
+            },
+            {
+              in: 'query',
+              name: 'offset',
+              schema: { type: 'integer', minimum: 0, default: 0 },
+              description: 'Number of rows to skip'
+            }
+          ],
+          responses: {
+            200: {
+              description: 'A list of sales',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/Sale' }
+                  }
+                }
+              }
+            },
+            400: { description: 'Invalid limit or offset' },
+            500: { description: 'Database query execution failure' }
+          }
+        },
+        post: {
+          summary: 'Create a sale and deduct stock',
+          description: 'Validated line items are checked against available stock (aggregated per product) and written in a single transaction together with the inventory movements.',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['customer_id', 'employee_name', 'items'],
+                  properties: {
+                    customer_id: { type: 'integer', example: 1 },
+                    employee_name: { type: 'string', maxLength: 100, example: 'Yanira' },
+                    items: {
+                      type: 'array',
+                      minItems: 1,
+                      items: {
+                        type: 'object',
+                        required: ['product_id', 'quantity_sold', 'unit_price'],
+                        properties: {
+                          product_id: { type: 'integer', example: 1 },
+                          quantity_sold: { type: 'number', exclusiveMinimum: 0, example: 5 },
+                          unit_price: { type: 'number', minimum: 0, example: 6500 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: 'Sale created',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'integer', example: 10 },
+                      customer_id: { type: 'integer', example: 1 },
+                      employee_name: { type: 'string', example: 'Yanira' },
+                      status: { type: 'string', example: 'paid' },
+                      items: { type: 'array', items: { type: 'object' } }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: 'Invalid payload (missing or malformed fields)' },
+            404: { description: 'Customer not found' },
+            409: { description: 'Insufficient stock for one or more products' },
+            500: { description: 'Transaction aborted / Database error' }
+          }
+        }
+      },
+      '/api/sales/{id}': {
+        get: {
+          summary: 'Get a single sale with its line items',
+          parameters: [
+            {
+              in: 'path',
+              name: 'id',
+              required: true,
+              schema: { type: 'integer' },
+              description: 'The numeric ID of the sale'
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Sale retrieved',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Sale' }
+                }
+              }
+            },
+            400: { description: 'Invalid sale ID parameter' },
+            404: { description: 'Sale not found' },
+            500: { description: 'Database query execution failure' }
+          }
+        }
+      },
+      '/api/sales/{id}/refund': {
+        post: {
+          summary: 'Refund a sale and restore stock',
+          description: 'Marks the sale as refunded and returns every line item quantity to stock. Refunding an already refunded sale returns 409.',
+          parameters: [
+            {
+              in: 'path',
+              name: 'id',
+              required: true,
+              schema: { type: 'integer' },
+              description: 'The numeric ID of the sale to refund'
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Sale refunded',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'integer', example: 10 },
+                      customer_id: { type: 'integer', example: 1 },
+                      status: { type: 'string', example: 'refunded' },
+                      sale_date: { type: 'string', format: 'date' }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: 'Invalid sale ID parameter' },
+            404: { description: 'Sale not found' },
+            409: { description: 'Sale already refunded or cancelled' },
+            500: { description: 'Transaction aborted / Database error' }
+          }
+        }
+      },
+      '/api/customers/active': {
+        get: {
+          summary: 'Get active customers',
+          description: 'Returns the customers available in the POS dropdown, ordered by company name.',
+          responses: {
+            200: {
+              description: 'A list of active customers',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer', example: 1 },
+                        company_name: { type: 'string', example: 'Apex Logistics Solutions' },
+                        contact_name: { type: 'string', example: 'Sarah Jenkins' },
+                        phone: { type: 'string', example: '+1 (555) 019-2834' },
+                        email: { type: 'string', example: 's.jenkins@apexlogistics.com' },
+                        delivery_address: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            500: { description: 'Database query execution failure' }
+          }
+        }
+      }
+    },
+    components: {
+      schemas: {
+        Sale: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer', example: 10 },
+            customer_id: { type: 'integer', example: 1 },
+            company_name: { type: 'string', example: 'Apex Logistics Solutions' },
+            contact_name: { type: 'string', example: 'Sarah Jenkins' },
+            employee_name: { type: 'string', example: 'Yanira' },
+            status: { type: 'string', enum: ['created', 'pending', 'paid', 'cancelled', 'refunded'], example: 'paid' },
+            sale_date: { type: 'string', format: 'date' },
+            created_at: { type: 'string', format: 'date-time' },
+            total_amount: { type: 'number', example: 32500 },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  item_id: { type: 'integer', example: 3 },
+                  product_id: { type: 'integer', example: 1 },
+                  product_name: { type: 'string', example: 'Pulpa de Mango' },
+                  quantity_sold: { type: 'number', example: 5 },
+                  unit_price: { type: 'number', example: 6500 },
+                  subtotal: { type: 'number', example: 32500 }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -294,11 +512,23 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use(express.json());
 app.use('/api', productionRoutes);
+app.use('/api', salesRoutes);
+app.use('/api', customerRoutes);
 
 // Global Error Handler
+// Errors carrying a `statusCode` (see src/utils/httpError.js) are reported as
+// client errors (4xx) with their message; everything else is a generic 500 so
+// database internals never leak to the client.
 app.use((err, req, res, next) => {
-  console.error('Unhandled Error:', err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
+  const statusCode = Number(err.statusCode || err.status) || 500;
+
+  if (statusCode >= 500) {
+    console.error('Unhandled Error:', err.stack);
+  }
+
+  res.status(statusCode).json({
+    error: statusCode >= 500 ? 'Internal Server Error' : (err.message || 'Request failed')
+  });
 });
 
 app.listen(PORT, () => {
