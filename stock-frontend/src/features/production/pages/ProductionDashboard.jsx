@@ -46,7 +46,6 @@ export default function ProductionDashboard() {
     try {
       // Assuming your productionApi service has a corresponding method to fetch products
       const data = await productionApi.getAllProducts();
-      console.log(data);
       setProducts(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load products list:', err);
@@ -89,7 +88,7 @@ export default function ProductionDashboard() {
       expirationDate: newItem.expirationDate || null
     }]);
 
-    setNewItem({ productId: '', quantityProduced: '', expirationDate: '' });
+    setNewItem({ productId: '', quantityProduced: '', expirationDate: newItem.expirationDate });
   };
 
   // 3. Workflow step: Finalize batch details dispatch
@@ -223,9 +222,12 @@ export default function ProductionDashboard() {
                         className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none text-slate-800"
                       >
                         <option value="" disabled>Select Employee</option>
+                        <option value="Jaqueline">Jaqueline</option>
                         <option value="Yanira">Yanira</option>
                         <option value="Marta">Marta</option>
                         <option value="Juan David">Juan David</option>
+                        <option value="Juan David">Bibiana</option>
+                        <option value="Juan David">Invitado 1</option>
                       </select>
                     </div>
                   </div>
@@ -327,7 +329,7 @@ export default function ProductionDashboard() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <div>
-                <h3 className="font-bold text-lg">Inspection Panel: Batch #{selectedBatch.id || selectedBatch.batchId}</h3>
+                <h3 className="font-bold text-lg">Inspection Panel: Batch #{selectedBatch.batch_id}</h3>
                 <p className="text-xs text-slate-400">Created by: {selectedBatch.employee_name || selectedBatch.employeeName}</p>
               </div>
               <button onClick={() => setSelectedBatch(null)} className="text-slate-400 hover:text-white text-sm font-semibold bg-slate-800 px-3 py-1.5 rounded-lg transition-colors">
@@ -352,17 +354,17 @@ export default function ProductionDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
                       {selectedBatch.items.map((item) => {
-                        const prodId = item.product_id || item.productId;
+                        const prodId =  item.productId;
                         const productObj = products.find(p => p.id === prodId);
                         return (
                           <tr key={item.id} className="hover:bg-slate-50">
-                            <td className="p-3 font-mono text-slate-400">#{item.id}</td>
+                            <td className="p-3 font-mono text-slate-400">#{item.productId}</td>
                             <td className="p-3 font-semibold text-slate-900">
                               {productObj ? productObj.name : `Prod ${prodId}`}
                             </td>
-                            <td className="p-3 font-medium text-slate-700">{item.quantity_produced || item.quantityProduced} units</td>
+                            <td className="p-3 font-medium text-slate-700">{item.quantityProduced} units</td>
                             <td className="p-3 text-slate-500">
-                              {item.expiration_date ? new Date(item.expiration_date).toLocaleDateString() : 'None Marked'}
+                              {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : 'None Marked'}
                             </td>
                           </tr>
                         );

@@ -125,7 +125,7 @@ export default function StockDashboard() {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Volume Units</p>
-            <h3 className="text-2xl font-bold text-slate-900">{totalUnitsInStock.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            <h3 className="text-2xl font-bold text-slate-900">{totalUnitsInStock}</h3>
           </div>
         </div>
 
