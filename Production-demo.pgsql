@@ -8,8 +8,12 @@ GROUP BY product_id,name
 ORDER BY product_id;
 
 
---- Termina jornada laboral
-INSERT INTO production_batches (employee_name) VALUES ('Juan');
+--- Termina jornada laboral (a batch is staffed by one or more roster employees)
+WITH new_batch AS (
+    INSERT INTO production_batches (production_date) VALUES (CURRENT_DATE) RETURNING id
+)
+INSERT INTO production_batch_employees (batch_id, employee_id)
+SELECT new_batch.id, e.id FROM new_batch, employees e WHERE e.name = 'Juan David';
 
 select * from production_batches
 select * from production_batch_items

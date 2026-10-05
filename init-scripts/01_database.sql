@@ -7,12 +7,26 @@ CREATE TABLE products (
     -- Default point-of-sale price per unit, in COP
     list_price DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (list_price >= 0)
 );
+-- Employees work on production batches; attribution is many-to-many
+-- (one batch can have several employees, one employee works on many batches)
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
 --Header-Detail pattern (or Parent-Child) or Composition (Object-Oriented Programming / UML)
 CREATE TABLE production_batches (
     id SERIAL PRIMARY KEY,
-    employee_name VARCHAR(100) NOT NULL,
     production_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Roster of employees who worked on each batch (at least one row per batch,
+-- enforced at the service layer since SQL cannot express "non-empty" on a FK)
+CREATE TABLE production_batch_employees (
+    batch_id INTEGER NOT NULL REFERENCES production_batches(id) ON DELETE CASCADE,
+    employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    PRIMARY KEY (batch_id, employee_id)
 );
 CREATE TABLE production_batch_items (
     id SERIAL PRIMARY KEY,

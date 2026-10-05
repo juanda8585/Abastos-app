@@ -1,24 +1,10 @@
 const { HttpError, internalError } = require('../utils/httpError');
+const { safeRollback } = require('../utils/transaction');
 
 /** Default page size for sales history queries. */
 const DEFAULT_LIMIT = 100;
 /** Hard cap so a single request can never pull an unbounded result set. */
 const MAX_LIMIT = 500;
-
-/**
- * Rolls back the current transaction without masking the original error.
- * A broken connection can make ROLLBACK itself fail; that must not replace
- * the error we are about to rethrow.
- *
- * @param {import('pg').PoolClient} client
- */
-async function safeRollback(client) {
-  try {
-    await client.query('ROLLBACK');
-  } catch (rollbackError) {
-    console.error('Rollback failed:', rollbackError);
-  }
-}
 
 /**
  * Service to handle sales and inventory transactions

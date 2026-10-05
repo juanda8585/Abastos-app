@@ -21,9 +21,10 @@ export const productionApi = {
     return response.data;
   },
 
-  // 3. POST /api/batches -> Maps to your createBatch controller
-  createBatch: async (employeeName) => {
-    const response = await api.post('/api/batches', { employeeName });
+  // 3. POST /api/batches -> Creates a batch header for one or more employees
+  //    (employeeIds: roster ids from employeeApi.getAllEmployees)
+  createBatch: async (employeeIds) => {
+    const response = await api.post('/api/batches', { employeeIds });
     return response.data; // Expects: { success: true, batchId: X }
   },
 
@@ -96,4 +97,18 @@ export const customerApi = {
     const response = await api.get('/api/customers/active');
     return response.data;
   },
+};
+
+export const employeeApi = {
+  // GET /api/employees -> Full roster used to staff production batches
+  getAllEmployees: async () => {
+    const response = await api.get('/api/employees');
+    return response.data;
+  },
+
+  // POST /api/employees -> Add someone to the roster (409 if it already exists)
+  createEmployee: async (name) => {
+    const response = await api.post('/api/employees', { name });
+    return response.data;
+  }
 };

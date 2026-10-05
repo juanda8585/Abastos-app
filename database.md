@@ -9,13 +9,23 @@ erDiagram
         string name
         text description
         string unit
+        decimal list_price
+    }
+
+    EMPLOYEES {
+        int id PK
+        string name UK
     }
 
     PRODUCTION_BATCHES {
         int id PK
-        string employee_name
         date production_date
         timestamp created_at
+    }
+
+    PRODUCTION_BATCH_EMPLOYEES {
+        int batch_id PK,FK
+        int employee_id PK,FK
     }
 
     PRODUCTION_BATCH_ITEMS {
@@ -71,6 +81,8 @@ erDiagram
 
     PRODUCTS ||--o{ PRODUCTION_BATCH_ITEMS : produced
     PRODUCTION_BATCHES ||--o{ PRODUCTION_BATCH_ITEMS : contains
+    PRODUCTION_BATCHES ||--o{ PRODUCTION_BATCH_EMPLOYEES : staffed_by
+    EMPLOYEES ||--o{ PRODUCTION_BATCH_EMPLOYEES : works_on
 
     CUSTOMERS ||--o{ SALES : places
     SALES ||--o{ SALE_ITEMS : contains

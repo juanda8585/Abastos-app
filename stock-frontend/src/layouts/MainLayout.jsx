@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Factory, BarChart3, ShoppingCart, Store } from 'lucide-react';
+import { Factory, BarChart3, ShoppingCart, Store, Settings } from 'lucide-react';
 
 export default function MainLayout() {
   const location = useLocation();
@@ -9,6 +8,7 @@ export default function MainLayout() {
     { name: 'Production', path: '/production', icon: Factory },
     { name: 'Stock Dashboard', path: '/stock', icon: BarChart3 },
     { name: 'Selling / POS', path: '/selling', icon: ShoppingCart },
+    { name: 'Admin', path: '/admin', icon: Settings },
   ];
 
   return (

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 
@@ -6,6 +5,7 @@ import MainLayout from './layouts/MainLayout';
 import ProductionDashboard from './features/production/pages/ProductionDashboard';
 import StockDashboard from './features/stock/pages/StockDashboard';
 import SellingDashboard from './features/selling/pages/SellingDashboard';
+import AdminDashboard from './features/admin/pages/AdminDashboard';
 
 export default function App() {
   return (
@@ -20,6 +20,7 @@ export default function App() {
           <Route path="/production/*" element={<ProductionDashboard />} />
           <Route path="/stock/*" element={<StockDashboard />} />
           <Route path="/selling/*" element={<SellingDashboard />} />
+          <Route path="/admin/*" element={<AdminDashboard />} />
         </Route>
 
         {/* Catch-all fallback Route */}

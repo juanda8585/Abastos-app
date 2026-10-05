@@ -2,44 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const SaleService = require('../src/services/sale');
+const { createHarness } = require('../test-support/fakePool');
 
 // The service logs every failed transaction; keep expected failures out of the
 // test output while still asserting on the statements that were issued.
 const realConsoleError = console.error;
 test.before(() => { console.error = () => {}; });
 test.after(() => { console.error = realConsoleError; });
-
-/**
- * Minimal pg pool double.
- *
- * `handler(sql, params)` decides the rows returned for a statement; every
- * statement is recorded in `log` so tests can assert on transaction control
- * (BEGIN/COMMIT/ROLLBACK), lock ordering and the SQL that was issued.
- */
-function createHarness(handler = () => ({ rows: [] })) {
-  const log = [];
-
-  const record = async (sql, params) => {
-    const entry = { sql: sql.replace(/\s+/g, ' ').trim(), params };
-    log.push(entry);
-    return handler(entry.sql, params);
-  };
-
-  const client = {
-    query: record,
-    release: () => log.push({ sql: 'RELEASE', params: null }),
-  };
-
-  return {
-    log,
-    pool: {
-      connect: async () => client,
-      query: record,
-    },
-    find: (fragment) => log.filter((entry) => entry.sql.includes(fragment)),
-    has: (fragment) => log.some((entry) => entry.sql.includes(fragment)),
-  };
-}
 
 const baseSale = {
   customer_id: 1,

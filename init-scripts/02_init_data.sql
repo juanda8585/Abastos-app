@@ -1,3 +1,12 @@
+-- Employee roster shown when opening a production batch
+INSERT INTO employees (name) VALUES
+('Jaqueline'),
+('Yanira'),
+('Marta'),
+('Juan David'),
+('Bibiana'),
+('Invitado 1');
+
 -- Insert products (list_price = default POS price per unit, in COP)
 INSERT INTO products (sku, name, description, unit, list_price) VALUES
 ('MANGO', 'Pulpa de Mango', 'Pulpa natural de mango criollo, sin conservantes.', 'lb', 6500),

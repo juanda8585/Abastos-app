@@ -1,3 +1,6 @@
+const { HttpError, internalError } = require('../utils/httpError');
+const { safeRollback } = require('../utils/transaction');
+
 /**
  * Service to handle production batch operations
  */
@@ -7,23 +10,75 @@ class ProductionService {
   }
 
   /**
-   * Creates a new production batch header
-   * @param {string} employeeName 
+   * Creates a new production batch header together with the roster of
+   * employees who worked on it (one batch can have several employees).
+   *
+   * @param {Object} batchData
+   * @param {number[]} [batchData.employeeIds] Roster ids (preferred)
+   * @param {string} [batchData.employeeName]  Legacy single roster name
    * @returns {Promise<number>} The created batch ID
    */
-  async createBatch(employeeName) {
-    const queryText = `
-      INSERT INTO production_batches (employee_name)
-      VALUES ($1)
-      RETURNING id;
-    `;
-    
+  async createBatch({ employeeIds, employeeName } = {}) {
+    const client = await this.pool.connect();
+
     try {
-      const result = await this.pool.query(queryText, [employeeName]);
-      return result.rows[0].id;
+      await client.query('BEGIN');
+
+      // 1. Resolve the employees for this batch against the roster
+      let resolvedEmployeeIds;
+      if (Array.isArray(employeeIds) && employeeIds.length > 0) {
+        const requestedIds = [...new Set(employeeIds.map(Number))].sort((a, b) => a - b);
+        const rosterResult = await client.query(
+          'SELECT id FROM employees WHERE id = ANY($1::int[])',
+          [requestedIds]
+        );
+        const knownIds = new Set(rosterResult.rows.map((row) => row.id));
+        const unknownIds = requestedIds.filter((id) => !knownIds.has(id));
+        if (unknownIds.length > 0) {
+          throw new HttpError(400, `Unknown employee id(s): ${unknownIds.join(', ')}`);
+        }
+        resolvedEmployeeIds = requestedIds;
+      } else if (typeof employeeName === 'string' && employeeName.trim() !== '') {
+        const rosterResult = await client.query(
+          'SELECT id FROM employees WHERE name = $1',
+          [employeeName.trim()]
+        );
+        if (rosterResult.rows.length === 0) {
+          throw new HttpError(404, `Employee "${employeeName.trim()}" is not in the roster`);
+        }
+        resolvedEmployeeIds = [rosterResult.rows[0].id];
+      } else {
+        throw new HttpError(400, 'At least one employee is required (employeeIds)');
+      }
+
+      // 2. Header: employee attribution lives in production_batch_employees
+      const batchResult = await client.query(
+        `INSERT INTO production_batches (production_date)
+         VALUES (CURRENT_DATE)
+         RETURNING id;`
+      );
+      const batchId = batchResult.rows[0].id;
+
+      // 3. One junction row per employee
+      for (const employeeId of resolvedEmployeeIds) {
+        await client.query(
+          'INSERT INTO production_batch_employees (batch_id, employee_id) VALUES ($1, $2)',
+          [batchId, employeeId]
+        );
+      }
+
+      await client.query('COMMIT');
+      return batchId;
     } catch (error) {
+      await safeRollback(client);
       console.error('Error creating production batch:', error);
-      throw new Error(`Failed to create batch: ${error.message}`);
+
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      throw internalError('Failed to create batch', error);
+    } finally {
+      client.release();
     }
   }
 
@@ -85,10 +140,21 @@ class ProductionService {
    * @returns {Promise<Array>} List of all batches
    */
   async getAllBatches() {
+    // Employees are aggregated in the same pass (no N+1); this query has a
+    // single child join, so there is no aggregation fan-out.
     const queryText = `
-      SELECT id, employee_name, created_at 
-      FROM production_batches
-      ORDER BY created_at DESC;
+      SELECT 
+        b.id,
+        b.created_at,
+        COALESCE(
+          json_agg(json_build_object('id', e.id, 'name', e.name) ORDER BY e.name)
+          FILTER (WHERE e.id IS NOT NULL), '[]'
+        ) AS employees
+      FROM production_batches b
+      LEFT JOIN production_batch_employees pbe ON pbe.batch_id = b.id
+      LEFT JOIN employees e ON e.id = pbe.employee_id
+      GROUP BY b.id
+      ORDER BY b.created_at DESC, b.id DESC;
     `;
     try {
       const result = await this.pool.query(queryText);
@@ -105,11 +171,20 @@ class ProductionService {
    * @returns {Promise<Object|null>} The production batch layout or null if not found
    */
   async getBatchWithItems(batchId) {
+    // Employees come from a correlated subquery: aggregating them alongside
+    // items in one GROUP BY would multiply both arrays (items x employees).
     const queryText = `
       SELECT 
         b.id AS batch_id,
-        b.employee_name,
         b.created_at,
+        (
+          SELECT COALESCE(
+            json_agg(json_build_object('id', e.id, 'name', e.name) ORDER BY e.name), '[]'
+          )
+          FROM production_batch_employees pbe
+          JOIN employees e ON e.id = pbe.employee_id
+          WHERE pbe.batch_id = b.id
+        ) AS employees,
         COALESCE(
           json_agg(
             json_build_object(
@@ -117,7 +192,7 @@ class ProductionService {
               'productId', i.product_id,
               'quantityProduced', i.quantity_produced,
               'expirationDate', i.expiration_date
-            )
+            ) ORDER BY i.id
           ) FILTER (WHERE i.id IS NOT NULL), '[]'
         ) AS items
       FROM production_batches b

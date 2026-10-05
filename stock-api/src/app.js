@@ -5,6 +5,7 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const productionRoutes = require('./routes/production');
 const salesRoutes = require('./routes/sales');
 const customerRoutes = require('./routes/customers');
+const employeeRoutes = require('./routes/employees');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,7 +49,17 @@ const swaggerOptions = {
                       type: 'object',
                       properties: {
                         id: { type: 'integer', example: 1 },
-                        employee_name: { type: 'string', example: 'John Doe' },
+                        employees: {
+                          type: 'array',
+                          description: 'Employees who worked on this batch (at least one)',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'integer', example: 3 },
+                              name: { type: 'string', example: 'Yanira' }
+                            }
+                          }
+                        },
                         created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' }
                       }
                     }
@@ -68,9 +79,20 @@ const swaggerOptions = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['employeeName'],
+                  required: ['employeeIds'],
                   properties: {
-                    employeeName: { type: 'string', example: 'John Doe' }
+                    employeeIds: {
+                      type: 'array',
+                      minItems: 1,
+                      description: 'Roster ids of every employee working on this batch',
+                      items: { type: 'integer', example: 3 }
+                    },
+                    employeeName: {
+                      type: 'string',
+                      deprecated: true,
+                      description: 'Legacy single-name form; resolved against the roster. Prefer employeeIds.',
+                      example: 'Yanira'
+                    }
                   }
                 }
               }
@@ -91,7 +113,8 @@ const swaggerOptions = {
                 }
               }
             },
-            400: { description: 'Invalid input / Missing required fields' }
+            400: { description: 'Invalid input / Missing required fields' },
+            404: { description: 'Legacy employeeName is not in the roster' }
           }
         }
       },
@@ -117,7 +140,16 @@ const swaggerOptions = {
                     type: 'object',
                     properties: {
                       batch_id: { type: 'integer', example: 1 },
-                      employee_name: { type: 'string', example: 'John Doe' },
+                      employees: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'integer', example: 3 },
+                            name: { type: 'string', example: 'Yanira' }
+                          }
+                        }
+                      },
                       created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' },
                       items: {
                         type: 'array',
@@ -282,6 +314,67 @@ const swaggerOptions = {
             },
             404: { description: 'Target batch item row not found' },
             500: { description: 'Transaction execution failure' }
+          }
+        }
+      },
+      '/api/employees': {
+        get: {
+          summary: 'Get the employee roster',
+          description: 'All employees who can be assigned to a production batch, ordered by name.',
+          responses: {
+            200: {
+              description: 'The roster',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer', example: 3 },
+                        name: { type: 'string', example: 'Yanira' }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            500: { description: 'Database query execution failure' }
+          }
+        },
+        post: {
+          summary: 'Add an employee to the roster',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['name'],
+                  properties: {
+                    name: { type: 'string', maxLength: 100, example: 'Bibiana' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: 'Employee created',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'integer', example: 7 },
+                      name: { type: 'string', example: 'Bibiana' }
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: 'Missing or too long a name' },
+            409: { description: 'Employee already in the roster' }
           }
         }
       },
@@ -514,6 +607,7 @@ app.use(express.json());
 app.use('/api', productionRoutes);
 app.use('/api', salesRoutes);
 app.use('/api', customerRoutes);
+app.use('/api', employeeRoutes);
 
 // Global Error Handler
 // Errors carrying a `statusCode` (see src/utils/httpError.js) are reported as

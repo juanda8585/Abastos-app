@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { productionApi } from '../../../services/productionService';
+import { productionApi, employeeApi } from '../../../services/productionService';
 import { Plus, List, User, PlusCircle, Trash2, Layers, CheckCircle2, Eye, X } from 'lucide-react';
 
 export default function ProductionDashboard() {
@@ -13,7 +13,8 @@ export default function ProductionDashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Form State for creating a new batch workflow
-  const [employeeName, setEmployeeName] = useState('');
+  const [employeeIds, setEmployeeIds] = useState([]); // Employees selected for the new batch
+  const [employees, setEmployees] = useState([]); // Full roster loaded from the API
   const [activeBatchId, setActiveBatchId] = useState(null);
   const [itemsToSubmit, setItemsToSubmit] = useState([]);
   
@@ -23,10 +24,11 @@ export default function ProductionDashboard() {
   // Selected batch detailed modal view state
   const [selectedBatch, setSelectedBatch] = useState(null);
 
-  // Fetch batches & products on mount
+  // Fetch batches, products & employee roster on mount
   useEffect(() => {
     loadBatches();
     loadProducts();
+    loadEmployees();
   }, []);
 
   const loadBatches = async () => {
@@ -52,11 +54,35 @@ export default function ProductionDashboard() {
     }
   };
 
+  // Roster of employees who can be assigned to a batch
+  const loadEmployees = async () => {
+    try {
+      const data = await employeeApi.getAllEmployees();
+      setEmployees(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load employee roster:', err);
+    }
+  };
+
+  // Toggle one employee in/out of the batch selection
+  const toggleEmployee = (employeeId) => {
+    setEmployeeIds((prev) =>
+      prev.includes(employeeId)
+        ? prev.filter((id) => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  // Names of the currently selected employees (roster order)
+  const selectedEmployeeNames = employees
+    .filter((emp) => employeeIds.includes(emp.id))
+    .map((emp) => emp.name);
+
   // Helper to safely close the creation modal and clear wizard state
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);
     setActiveBatchId(null);
-    setEmployeeName('');
+    setEmployeeIds([]);
     setItemsToSubmit([]);
     setNewItem({ productId: '', quantityProduced: '', expirationDate: '' });
   };
@@ -64,10 +90,10 @@ export default function ProductionDashboard() {
   // 1. Workflow step: Initialize batch header
   const handleStartBatch = async (e) => {
     e.preventDefault();
-    if (!employeeName) return;
+    if (employeeIds.length === 0) return;
 
     try {
-      const response = await productionApi.createBatch(employeeName);
+      const response = await productionApi.createBatch(employeeIds);
       if (response.success) {
         setActiveBatchId(response.batchId);
         setItemsToSubmit([]);
@@ -160,7 +186,7 @@ export default function ProductionDashboard() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase tracking-wider">
                   <th className="px-4 py-3">Batch ID</th>
-                  <th className="px-4 py-3">Operator Name</th>
+                  <th className="px-4 py-3">Employees</th>
                   <th className="px-4 py-3">Timestamp Run</th>
                   <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
@@ -169,7 +195,9 @@ export default function ProductionDashboard() {
                 {batches.map((b) => (
                   <tr key={b.id || b.batchId} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">#{b.id || b.batchId}</td>
-                    <td className="px-4 py-3 font-medium">{b.employee_name || b.employeeName}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {(b.employees || []).map((emp) => emp.name).join(', ') || 'None assigned'}
+                    </td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
                       {b.created_at ? new Date(b.created_at).toLocaleString() : 'N/A'}
                     </td>
@@ -207,33 +235,51 @@ export default function ProductionDashboard() {
 
             <div className="p-6 overflow-y-auto">
               {!activeBatchId ? (
-                /* Step A: Initialize the header form config with a Dropdown */
+                /* Step A: Pick one or more employees from the roster */
                 <form onSubmit={handleStartBatch} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                      Responsible Operator
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase mb-2">
+                      <User className="h-3.5 w-3.5" /> Employees working on this batch
                     </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
-                      <select
-                        required
-                        value={employeeName}
-                        onChange={(e) => setEmployeeName(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none text-slate-800"
-                      >
-                        <option value="" disabled>Select Employee</option>
-                        <option value="Jaqueline">Jaqueline</option>
-                        <option value="Yanira">Yanira</option>
-                        <option value="Marta">Marta</option>
-                        <option value="Juan David">Juan David</option>
-                        <option value="Juan David">Bibiana</option>
-                        <option value="Juan David">Invitado 1</option>
-                      </select>
-                    </div>
+
+                    {employees.length === 0 ? (
+                      <p className="text-sm text-slate-400">
+                        No employees in the roster yet.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {employees.map((emp) => {
+                          const isSelected = employeeIds.includes(emp.id);
+                          return (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              onClick={() => toggleEmployee(emp.id)}
+                              aria-pressed={isSelected}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                                isSelected
+                                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
+                              }`}
+                            >
+                              {isSelected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                              {emp.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <p className={`text-xs mt-2 ${employeeIds.length === 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                      {employeeIds.length === 0
+                        ? 'Select at least one employee.'
+                        : `${employeeIds.length} employee${employeeIds.length === 1 ? '' : 's'} selected: ${selectedEmployeeNames.join(', ')}`}
+                    </p>
                   </div>
                   <button 
                     type="submit" 
-                    className="w-full bg-slate-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
+                    disabled={employeeIds.length === 0}
+                    className="w-full bg-slate-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >
                     Initialize Active Batch
                   </button>
@@ -243,7 +289,7 @@ export default function ProductionDashboard() {
                 <div className="space-y-6">
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
                     <strong>Active Batch initialized: #{activeBatchId}</strong><br/>
-                    Operator: {employeeName}
+                    Employees: {selectedEmployeeNames.join(', ')}
                   </div>
 
                   {/* Local Staging Inline Form Submitting row items with Product Dropdown */}
@@ -330,7 +376,9 @@ export default function ProductionDashboard() {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <div>
                 <h3 className="font-bold text-lg">Inspection Panel: Batch #{selectedBatch.batch_id}</h3>
-                <p className="text-xs text-slate-400">Created by: {selectedBatch.employee_name || selectedBatch.employeeName}</p>
+                <p className="text-xs text-slate-400">
+                  Employees: {(selectedBatch.employees || []).map((emp) => emp.name).join(', ') || 'None assigned'}
+                </p>
               </div>
               <button onClick={() => setSelectedBatch(null)} className="text-slate-400 hover:text-white text-sm font-semibold bg-slate-800 px-3 py-1.5 rounded-lg transition-colors">
                 Close

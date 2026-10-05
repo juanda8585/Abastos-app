@@ -2,23 +2,56 @@ const pool = require('../config/database');
 const ProductionService = require('../services/production');
 const ProductService = require('../services/product');
 const StockService = require('../services/stock');
+const { HttpError } = require('../utils/httpError');
 
 const productionService = new ProductionService(pool);
 const productService = new ProductService(pool);
 const stockService = new StockService(pool);
 
 /**
+ * Validates the batch creation body. A batch must reference at least one
+ * employee, either as roster ids (preferred) or, for backwards
+ * compatibility, as a single roster name.
+ *
+ * @param {Object} body
+ * @returns {{employeeIds?: number[], employeeName?: string}}
+ */
+function validateCreateBatchPayload(body) {
+  const { employeeIds, employeeName } = body || {};
+
+  if (employeeIds !== undefined) {
+    if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+      throw new HttpError(400, 'employeeIds must be a non-empty array of employee ids');
+    }
+
+    const normalizedIds = employeeIds.map((id, index) => {
+      const numericId = Number(id);
+      if (!Number.isInteger(numericId) || numericId <= 0) {
+        throw new HttpError(400, `employeeIds[${index}] must be a positive integer`);
+      }
+      return numericId;
+    });
+
+    return { employeeIds: [...new Set(normalizedIds)] };
+  }
+
+  if (typeof employeeName === 'string' && employeeName.trim() !== '') {
+    if (employeeName.trim().length > 100) {
+      throw new HttpError(400, 'employeeName must be 100 characters or fewer');
+    }
+    return { employeeName: employeeName.trim() };
+  }
+
+  throw new HttpError(400, 'employeeIds is required (at least one employee per batch)');
+}
+
+/**
  * Handles batch creation
  */
 async function createBatch(req, res, next) {
   try {
-    const { employeeName } = req.body;
-    
-    if (!employeeName) {
-      return res.status(400).json({ error: 'employeeName is required' });
-    }
-
-    const batchId = await productionService.createBatch(employeeName);
+    const payload = validateCreateBatchPayload(req.body);
+    const batchId = await productionService.createBatch(payload);
     return res.status(201).json({ success: true, batchId });
   } catch (error) {
     next(error);
@@ -157,5 +190,6 @@ module.exports = {
   updateBatchItem,
   deleteBatchItem,
   getAllProducts,
-  getStockLevels
+  getStockLevels,
+  validateCreateBatchPayload
 };
