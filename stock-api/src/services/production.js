@@ -136,10 +136,19 @@ class ProductionService {
   }
 
   /**
-   * Fetches all production batch headers
-   * @returns {Promise<Array>} List of all batches
+   * Fetches a page of production batch headers, each carrying the roster that
+   * worked it.
+   *
+   * `limit: null` (the default) returns every batch: the admin dashboard
+   * derives its per-employee batch counts from these rows, so it needs the
+   * whole set. The ledger UI always asks for an explicit page size.
+   *
+   * @param {Object} [options]
+   * @param {number|null} [options.limit] Page size, or null for "all rows"
+   * @param {number} [options.offset] Rows to skip
+   * @returns {Promise<{items: Array<Object>, total: number, limit: number|null, offset: number}>}
    */
-  async getAllBatches() {
+  async getAllBatches({ limit = null, offset = 0 } = {}) {
     // Employees are aggregated in the same pass (no N+1); this query has a
     // single child join, so there is no aggregation fan-out.
     const queryText = `
@@ -154,11 +163,25 @@ class ProductionService {
       LEFT JOIN production_batch_employees pbe ON pbe.batch_id = b.id
       LEFT JOIN employees e ON e.id = pbe.employee_id
       GROUP BY b.id
-      ORDER BY b.created_at DESC, b.id DESC;
+      ORDER BY b.created_at DESC, b.id DESC
+      ${limit === null ? '' : 'LIMIT $1 OFFSET $2'};
     `;
     try {
-      const result = await this.pool.query(queryText);
-      return result.rows;
+      const [rowsResult, countResult] = await Promise.all([
+        limit === null
+          ? this.pool.query(queryText)
+          : this.pool.query(queryText, [limit, offset]),
+        // The total drives the pager, so it is counted independently of the
+        // page window rather than inferred from the returned rows.
+        this.pool.query('SELECT COUNT(*)::int AS total FROM production_batches')
+      ]);
+
+      return {
+        items: rowsResult.rows,
+        total: countResult.rows[0].total,
+        limit,
+        offset
+      };
     } catch (error) {
       console.error('Error fetching all batches:', error);
       throw new Error(`Failed to retrieve batches: ${error.message}`);

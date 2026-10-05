@@ -3,7 +3,7 @@ CREATE TABLE products (
     sku VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    unit VARCHAR(10) NOT NULL CHECK (unit IN ('lb', 'kg')),
+    unit VARCHAR(10) NOT NULL DEFAULT 'unit',
     -- Default point-of-sale price per unit, in COP
     list_price DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (list_price >= 0)
 );

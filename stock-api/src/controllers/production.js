@@ -3,10 +3,27 @@ const ProductionService = require('../services/production');
 const ProductService = require('../services/product');
 const StockService = require('../services/stock');
 const { HttpError } = require('../utils/httpError');
+const { parsePagination } = require('../utils/pagination');
 
 const productionService = new ProductionService(pool);
 const productService = new ProductService(pool);
 const stockService = new StockService(pool);
+
+const BATCH_MAX_LIMIT = 500;
+
+/**
+ * Parses the ledger's `limit` / `offset` query parameters.
+ *
+ * No default is applied on purpose: omitting `limit` returns every batch, so
+ * consumers that need a complete set (the admin dashboard's per-employee batch
+ * counts) get all rows. Paginated callers pass an explicit page size.
+ *
+ * @param {Object} query
+ * @returns {{limit: number|null, offset: number}}
+ */
+function parseBatchPagination(query) {
+  return parsePagination(query, { defaultLimit: null, maxLimit: BATCH_MAX_LIMIT });
+}
 
 /**
  * Validates the batch creation body. A batch must reference at least one
@@ -78,12 +95,13 @@ async function submitBatchDetails(req, res, next) {
 }
 
 /**
- * Handles fetching all production batch headers
+ * Handles fetching a page of production batch headers
  */
 async function getAllBatches(req, res, next) {
   try {
-    const batches = await productionService.getAllBatches();
-    return res.status(200).json(batches);
+    const { limit, offset } = parseBatchPagination(req.query);
+    const page = await productionService.getAllBatches({ limit, offset });
+    return res.status(200).json(page);
   } catch (error) {
     next(error);
   }
@@ -191,5 +209,6 @@ module.exports = {
   deleteBatchItem,
   getAllProducts,
   getStockLevels,
-  validateCreateBatchPayload
+  validateCreateBatchPayload,
+  parseBatchPagination
 };

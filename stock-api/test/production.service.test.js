@@ -105,3 +105,44 @@ test('createBatch requires at least one employee', async () => {
 
   assert.ok(harness.has('ROLLBACK'));
 });
+
+test('getAllBatches limits the page window and reports the total row count', async () => {
+  const row = { id: 9, created_at: '2026-10-05T10:00:00.000Z', employees: [] };
+  const harness = createHarness((sql) => {
+    if (sql.includes('COUNT(*)')) return { rows: [{ total: 112 }] };
+    return { rows: [row] };
+  });
+  const service = new ProductionService(harness.pool);
+
+  const page = await service.getAllBatches({ limit: 10, offset: 20 });
+
+  const [listQuery] = harness.find('ORDER BY b.created_at DESC');
+  assert.match(listQuery.sql, /LIMIT \$1 OFFSET \$2/);
+  assert.deepEqual(listQuery.params, [10, 20], 'the page window travels as bind parameters');
+
+  const [countQuery] = harness.find('COUNT(*)');
+  assert.equal(countQuery.params, undefined);
+
+  assert.deepEqual(page, { items: [row], total: 112, limit: 10, offset: 20 });
+  assert.ok(!harness.has('BEGIN'), 'a read must not open a transaction');
+});
+
+test('getAllBatches without a limit returns every batch', async () => {
+  const rows = [{ id: 1 }, { id: 2 }, { id: 3 }];
+  const harness = createHarness((sql) => {
+    if (sql.includes('COUNT(*)')) return { rows: [{ total: 3 }] };
+    return { rows };
+  });
+  const service = new ProductionService(harness.pool);
+
+  const page = await service.getAllBatches();
+
+  const [listQuery] = harness.find('ORDER BY b.created_at DESC');
+  assert.ok(!listQuery.sql.includes('LIMIT'), 'an omitted limit must not cap the result');
+  assert.equal(listQuery.params, undefined);
+
+  assert.equal(page.items.length, 3);
+  assert.equal(page.total, 3);
+  assert.equal(page.limit, null);
+  assert.equal(page.offset, 0);
+});

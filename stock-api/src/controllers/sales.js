@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const SaleService = require('../services/sale');
 const { HttpError } = require('../utils/httpError');
+const { parsePagination: parsePaginationQuery } = require('../utils/pagination');
 
 const saleService = new SaleService(pool);
 
@@ -9,21 +10,13 @@ const MAX_LIMIT = 500;
 
 /**
  * Parses and validates limit/offset query parameters.
+ * Sales history is always capped: an absent `limit` means the default page
+ * size, never "every row".
  * @param {Object} query
  * @returns {{limit: number, offset: number}}
  */
 function parsePagination(query) {
-  const limit = query.limit === undefined ? DEFAULT_LIMIT : Number(query.limit);
-  const offset = query.offset === undefined ? 0 : Number(query.offset);
-
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    throw new HttpError(400, `limit must be an integer between 1 and ${MAX_LIMIT}`);
-  }
-  if (!Number.isInteger(offset) || offset < 0) {
-    throw new HttpError(400, 'offset must be a non-negative integer');
-  }
-
-  return { limit, offset };
+  return parsePaginationQuery(query, { defaultLimit: DEFAULT_LIMIT, maxLimit: MAX_LIMIT });
 }
 
 /**

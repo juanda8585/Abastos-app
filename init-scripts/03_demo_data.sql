@@ -45,11 +45,11 @@ INSERT INTO sales (customer_id, employee_name, status)
 VALUES ((SELECT id FROM customers WHERE company_name = 'Puesto Abastos'), 'Yanira', 'pending');
 
 
---Now someone sell 50 lb of product 1
+--Now someone sell 50 units of product 1
 INSERT INTO inventory_movements (product_id, quantity, type, reference_id)
 VALUES (1, -50, 'sale', 1);
 
--- We found 10 lb broken that cannot be sale
+-- We found 10 units broken that cannot be sale
 INSERT INTO inventory_movements (product_id, quantity, type, reference_id)
 VALUES (1, -10, 'spoilage', null);
 

@@ -27,7 +27,7 @@ export default function AdminDashboard() {
     ]);
     return {
       employees: Array.isArray(employeeData) ? employeeData : [],
-      batches: Array.isArray(batchData) ? batchData : []
+      batches: Array.isArray(batchData?.items) ? batchData.items : []
     };
   };
 

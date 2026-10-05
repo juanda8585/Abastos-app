@@ -36,37 +36,75 @@ const swaggerOptions = {
     paths: {
       '/api/batches': {
         get: {
-          summary: 'Get all production batch headers',
-          description: 'Retrieves a list of all production batches ordered by creation date.',
+          summary: 'Get production batch headers (paginated)',
+          description: 'Retrieves production batches newest first, each with the roster that worked it. Omitting `limit` returns every batch, which is what dashboards that aggregate across all of them rely on.',
+          parameters: [
+            {
+              in: 'query',
+              name: 'limit',
+              schema: { type: 'integer', minimum: 1, maximum: 500 },
+              description: 'Page size. Omit to return every batch.'
+            },
+            {
+              in: 'query',
+              name: 'offset',
+              schema: { type: 'integer', minimum: 0, default: 0 },
+              description: 'Number of rows to skip'
+            }
+          ],
           responses: {
             200: {
-              description: 'A list of batches',
+              description: 'One page of batches plus the total row count',
               content: {
                 'application/json': {
                   schema: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        id: { type: 'integer', example: 1 },
-                        employees: {
-                          type: 'array',
-                          description: 'Employees who worked on this batch (at least one)',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              id: { type: 'integer', example: 3 },
-                              name: { type: 'string', example: 'Yanira' }
-                            }
+                    type: 'object',
+                    required: ['items', 'total', 'limit', 'offset'],
+                    properties: {
+                      items: {
+                        type: 'array',
+                        description: 'Batches for the requested page',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'integer', example: 1 },
+                            employees: {
+                              type: 'array',
+                              description: 'Employees who worked on this batch (at least one)',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  id: { type: 'integer', example: 3 },
+                                  name: { type: 'string', example: 'Yanira' }
+                                }
+                              }
+                            },
+                            created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' }
                           }
-                        },
-                        created_at: { type: 'string', format: 'date-time', example: '2026-06-16T15:45:00.000Z' }
+                        }
+                      },
+                      total: {
+                        type: 'integer',
+                        description: 'Total batches across every page',
+                        example: 112
+                      },
+                      limit: {
+                        type: 'integer',
+                        nullable: true,
+                        description: 'Applied page size, or null when the caller omitted `limit`',
+                        example: 10
+                      },
+                      offset: {
+                        type: 'integer',
+                        description: 'Applied row offset',
+                        example: 0
                       }
                     }
                   }
                 }
               }
             },
+            400: { description: 'Invalid limit or offset' },
             500: { description: 'Database query execution failure' }
           }
         },

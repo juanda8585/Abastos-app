@@ -9,9 +9,15 @@ const api = axios.create({
 });
 
 export const productionApi = {
-  // 1. GET /api/batches -> Maps to your getAllBatches controller
-  getAllBatches: async () => {
-    const response = await api.get('/api/batches');
+  // 1. GET /api/batches -> Paginated batch headers
+  //    `{ limit, offset }` selects the window; omitting `limit` returns every
+  //    row, which is what the admin dashboard's aggregates need.
+  getAllBatches: async ({ limit, offset } = {}) => {
+    const params = {};
+    if (limit !== undefined && limit !== null) params.limit = limit;
+    if (offset) params.offset = offset;
+
+    const response = await api.get('/api/batches', { params });
     return response.data;
   },
 

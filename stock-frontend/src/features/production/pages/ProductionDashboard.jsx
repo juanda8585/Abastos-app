@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { productionApi, employeeApi } from '../../../services/productionService';
-import { Plus, List, User, PlusCircle, Trash2, Layers, CheckCircle2, Eye, X } from 'lucide-react';
+import { Plus, List, User, PlusCircle, Trash2, Layers, CheckCircle2, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProductionDashboard() {
   // State variables
@@ -24,24 +24,49 @@ export default function ProductionDashboard() {
   // Selected batch detailed modal view state
   const [selectedBatch, setSelectedBatch] = useState(null);
 
-  // Fetch batches, products & employee roster on mount
-  useEffect(() => {
-    loadBatches();
-    loadProducts();
-    loadEmployees();
-  }, []);
+  // Ledger pagination: the table shows 10 rows per page by default
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-  const loadBatches = async () => {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  // Loads one window of the ledger. Its identity tracks the page window, so
+  // the effect below refetches exactly when the window changes.
+  const loadBatches = useCallback(async (targetPage = page, targetSize = pageSize) => {
     try {
       setLoading(true);
-      const data = await productionApi.getAllBatches();
-      setBatches(Array.isArray(data) ? data : []);
+      const data = await productionApi.getAllBatches({
+        limit: targetSize,
+        offset: targetPage * targetSize
+      });
+      setBatches(Array.isArray(data.items) ? data.items : []);
+      setTotal(Number(data.total) || 0);
       setError(null);
     } catch (err) {
       setError('Failed to download production records from api service.');
     } finally {
       setLoading(false);
     }
+  }, [page, pageSize]);
+
+  // Products and roster are loaded once; batches are refetched whenever the
+  // requested page window changes
+  useEffect(() => {
+    loadProducts();
+    loadEmployees();
+  }, []);
+
+  useEffect(() => {
+    loadBatches();
+  }, [loadBatches]);
+
+  // Paging controls
+  const goToPage = (nextPage) => setPage(Math.min(Math.max(nextPage, 0), pageCount - 1));
+
+  const handlePageSizeChange = (event) => {
+    setPageSize(Number(event.target.value));
+    setPage(0);
   };
 
   const loadProducts = async () => {
@@ -122,7 +147,12 @@ export default function ProductionDashboard() {
     if (itemsToSubmit.length === 0) return;
     try {
       await productionApi.submitBatchDetails(activeBatchId, itemsToSubmit);
-      loadBatches(); // Reload records datatable
+      // A fresh batch sorts to the top of the ledger, so go back to page 1
+      if (page === 0) {
+        loadBatches(0, pageSize);
+      } else {
+        setPage(0);
+      }
       handleCloseCreateModal(); // Close modal and clean up
     } catch (err) {
       alert('Error finalizing batch items entry processing.');
@@ -163,7 +193,7 @@ export default function ProductionDashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Total System Batches</p>
-            <h3 className="text-2xl font-bold text-slate-900">{batches.length}</h3>
+            <h3 className="text-2xl font-bold text-slate-900">{total}</h3>
           </div>
         </div>
       </div>
@@ -213,6 +243,48 @@ export default function ProductionDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Server-side pager over the ledger */}
+        {!loading && !error && total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 mt-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <label htmlFor="ledger-page-size" className="font-medium">Rows per page</label>
+              <select
+                id="ledger-page-size"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                {[10, 25, 50].map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              <span className="ml-2">
+                Showing {page * pageSize + 1}&ndash;{Math.min((page + 1) * pageSize, total)} of {total}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => goToPage(page - 1)}
+                disabled={page === 0}
+                className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+              </button>
+              <span className="text-slate-500 font-medium px-1">Page {page + 1} of {pageCount}</span>
+              <button
+                type="button"
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= pageCount - 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         )}
       </div>
