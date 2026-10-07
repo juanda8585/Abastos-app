@@ -7,7 +7,9 @@ services:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydatabase
     ports:
-      - "5432:5432"
+      # Loopback only: the database is never reachable from other machines
+      # on the network (users reach the app through nginx on port 80).
+      - "127.0.0.1:5432:5432"
     volumes:
       # Mount your local initialization script into the container's init folder
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -16,12 +18,15 @@ services:
     restart: unless-stopped
 
   backend-api:
-    container_name: abastos-api
+    container_name: bubala-api
+    image: bubala-api
     build: 
       context: ./stock-api
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      # Loopback only: remote users are proxied by nginx (port 80) via /api,
+      # so the API itself does not need to be exposed on the network.
+      - "127.0.0.1:3000:3000"
     depends_on:
       - postgres_db       # <-- FIX: Wait for the database to boot up first
     environment:
@@ -32,16 +37,15 @@ services:
 
   # ADD THIS NEW FRONTEND BLOCK HERE
   stock-frontend:
-    container_name: abastos-frontend
+    container_name: bubala-frontend
+    image: bubala-frontend
     build:
       context: ./stock-frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80" # Map Nginx to standard web port 80
+      - "80:80" # Map Nginx to standard web port 80 (the only port users need)
     depends_on:
       - backend-api
-    environment:
-      - VITE_API_URL=http://localhost:3000/api
 
 volumes:
   postgres_data:

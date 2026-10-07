@@ -42,7 +42,7 @@ class EmployeeService {
     try {
       const result = await this.pool.query(queryText, [name]);
       if (result.rows.length === 0) {
-        throw new HttpError(409, `Employee "${name}" is already in the roster`);
+        throw new HttpError(409, `El empleado "${name}" ya existe en la nómina`);
       }
       return result.rows[0];
     } catch (error) {

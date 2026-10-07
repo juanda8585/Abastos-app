@@ -23,14 +23,17 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Abastos Stock & Production API',
+      title: 'Bubala Stock & Production API',
       version: '1.0.0',
       description: 'API documentation for managing production batches and inventory movements.',
     },
     servers: [
       {
-        url: `http://localhost:${PORT}`,
-        description: 'Local Development Server',
+        // Relative URL: Swagger "Try it out" then calls the same origin that
+        // served the page, so it works on this PC and from any machine on the
+        // network (nginx forwards /api to this server).
+        url: '/',
+        description: 'Current server',
       },
     ],
     paths: {
@@ -659,7 +662,7 @@ app.use((err, req, res, next) => {
   }
 
   res.status(statusCode).json({
-    error: statusCode >= 500 ? 'Internal Server Error' : (err.message || 'Request failed')
+    error: statusCode >= 500 ? 'Error interno del servidor' : (err.message || 'Error en la solicitud')
   });
 });
 

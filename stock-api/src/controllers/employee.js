@@ -11,11 +11,11 @@ const employeeService = new EmployeeService(pool);
  */
 function validateEmployeeName(name) {
   if (typeof name !== 'string' || name.trim() === '') {
-    throw new HttpError(400, 'name is required');
+    throw new HttpError(400, 'El nombre es obligatorio');
   }
   const trimmedName = name.trim();
   if (trimmedName.length > 100) {
-    throw new HttpError(400, 'name must be 100 characters or fewer');
+    throw new HttpError(400, 'El nombre no puede superar los 100 caracteres');
   }
   return trimmedName;
 }

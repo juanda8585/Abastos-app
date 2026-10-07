@@ -40,7 +40,7 @@ class SaleService {
         [customer_id]
       );
       if (customerResult.rows.length === 0) {
-        throw new HttpError(404, `Customer with ID ${customer_id} not found`);
+        throw new HttpError(404, `No se encontró el cliente con ID ${customer_id}`);
       }
 
       // 1. Aggregate requested quantities per product and lock the stock rows
@@ -63,7 +63,7 @@ class SaleService {
         if (currentStock < requiredStock) {
           throw new HttpError(
             409,
-            `Insufficient stock for product ID ${productId}. Available: ${currentStock}, requested: ${requiredStock}`
+            `Existencias insuficientes para el producto con ID ${productId}. Disponibles: ${currentStock}, solicitados: ${requiredStock}`
           );
         }
       }
@@ -161,10 +161,13 @@ class SaleService {
         [saleId]
       );
       if (saleCheck.rows.length === 0) {
-        throw new HttpError(404, `Sale with ID ${saleId} not found.`);
+        throw new HttpError(404, `No se encontró la venta con ID ${saleId}.`);
       }
-      if (saleCheck.rows[0].status === 'refunded' || saleCheck.rows[0].status === 'cancelled') {
-        throw new HttpError(409, `Sale is already ${saleCheck.rows[0].status}.`);
+      const saleStatus = saleCheck.rows[0].status;
+      if (saleStatus === 'refunded' || saleStatus === 'cancelled') {
+        // The stored status stays in English; only the user-facing text is translated.
+        const statusLabel = { refunded: 'reembolsada', cancelled: 'cancelada' }[saleStatus] || saleStatus;
+        throw new HttpError(409, `La venta ya fue ${statusLabel}.`);
       }
 
       // 2. Fetch items to restock (stable lock order)

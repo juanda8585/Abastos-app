@@ -23,10 +23,10 @@ function parsePagination(query = {}, { defaultLimit = null, maxLimit = 500 } = {
     : Number(query.offset);
 
   if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > maxLimit)) {
-    throw new HttpError(400, `limit must be an integer between 1 and ${maxLimit}`);
+    throw new HttpError(400, `limit debe ser un número entero entre 1 y ${maxLimit}`);
   }
   if (!Number.isInteger(offset) || offset < 0) {
-    throw new HttpError(400, 'offset must be a non-negative integer');
+    throw new HttpError(400, 'offset debe ser un número entero mayor o igual a 0');
   }
 
   return { limit, offset };

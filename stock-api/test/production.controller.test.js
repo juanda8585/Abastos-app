@@ -12,9 +12,9 @@ test('validateCreateBatchPayload normalizes roster ids', () => {
 
 test('validateCreateBatchPayload rejects invalid employee ids', () => {
   const cases = [
-    [{}, /employeeIds is required/],
-    [{ employeeIds: [] }, /non-empty array/],
-    [{ employeeIds: 'nope' }, /non-empty array/],
+    [{}, /employeeIds es obligatorio/],
+    [{ employeeIds: [] }, /arreglo no vacío/],
+    [{ employeeIds: 'nope' }, /arreglo no vacío/],
     [{ employeeIds: [0] }, /employeeIds\[0\]/],
     [{ employeeIds: [-3] }, /employeeIds\[0\]/],
     [{ employeeIds: [1.5] }, /employeeIds\[0\]/],

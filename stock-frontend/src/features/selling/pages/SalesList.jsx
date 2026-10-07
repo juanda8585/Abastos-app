@@ -21,7 +21,7 @@ export default function SalesList() {
 
   // Format date readable
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'N/D';
     return new Date(dateString).toLocaleDateString('es-CO', {
       year: 'numeric',
       month: 'short',
@@ -40,7 +40,7 @@ export default function SalesList() {
       setSales(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load sales history:', err);
-      setError(err.message || 'Error fetching sales list');
+      setError(err.message || 'Error al cargar la lista de ventas');
     } finally {
       setLoading(false);
     }
@@ -67,9 +67,9 @@ export default function SalesList() {
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-blue-600" />
-            Sales Records
+            Registros de ventas
           </h2>
-          <p className="text-xs text-slate-500">Overview of all completed client transactions</p>
+          <p className="text-xs text-slate-500">Resumen de todas las transacciones de clientes completadas</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ export default function SalesList() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by sale ID, customer, staff..."
+              placeholder="Buscar por ID de venta, cliente, empleado..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none w-64"
@@ -89,7 +89,7 @@ export default function SalesList() {
             onClick={fetchSales}
             disabled={loading}
             className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-            title="Refresh list"
+            title="Actualizar lista"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -100,7 +100,7 @@ export default function SalesList() {
       <div className="flex-1 overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center p-12 text-slate-400 text-sm">
-            Loading sales history...
+            Cargando historial de ventas...
           </div>
         ) : error ? (
           <div className="flex items-center justify-center p-12 text-rose-600 text-sm">
@@ -109,18 +109,18 @@ export default function SalesList() {
         ) : filteredSales.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-400 text-sm gap-2">
             <ShoppingBag className="w-8 h-8 stroke-1 text-slate-300" />
-            <p>No sales records found.</p>
+            <p>Aún no hay ventas registradas.</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold">
-                <th className="py-3 px-4">Sale ID</th>
-                <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Staff</th>
-                <th className="py-3 px-4">Items Breakdown</th>
-                <th className="py-3 px-4 text-right">Total Amount</th>
+                <th className="py-3 px-4">ID de venta</th>
+                <th className="py-3 px-4">Fecha</th>
+                <th className="py-3 px-4">Cliente</th>
+                <th className="py-3 px-4">Empleado</th>
+                <th className="py-3 px-4">Detalle de productos</th>
+                <th className="py-3 px-4 text-right">Monto total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -140,7 +140,7 @@ export default function SalesList() {
                       </div>
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-800">
-                      {sale.customer_name || sale.company_name || `Customer #${sale.customer_id}`}
+                      {sale.customer_name || sale.company_name || `Cliente #${sale.customer_id}`}
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       <div className="flex items-center gap-1">
@@ -153,13 +153,13 @@ export default function SalesList() {
                         <div className="space-y-0.5">
                           {sale.items.map((item, idx) => (
                             <div key={idx} className="text-slate-600">
-                              <span className="font-semibold">{item.quantity_sold}x</span> {item.product_name || item.name || `Product #${item.product_id}`}
+                              <span className="font-semibold">{item.quantity_sold}x</span> {item.product_name || item.name || `Producto #${item.product_id}`}
                               <span className="text-slate-400 ml-1">({formatCOP(item.unit_price)})</span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-slate-400 italic">No details</span>
+                        <span className="text-slate-400 italic">Sin detalles</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-slate-900 whitespace-nowrap">

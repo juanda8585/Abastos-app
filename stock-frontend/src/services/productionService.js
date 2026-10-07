@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Instantiate Axios directly pointing to your Express server
+// Instantiate Axios with a relative base URL: requests go to whatever origin
+// serves the page (nginx in Docker, Vite dev server in development). This is
+// what lets the app be opened from another computer on the network.
 const api = axios.create({
-  baseURL: 'http://localhost:3000', 
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },

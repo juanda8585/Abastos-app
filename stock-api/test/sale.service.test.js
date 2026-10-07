@@ -36,7 +36,7 @@ test('createSale rejects duplicate product lines whose combined quantity exceeds
       }),
     (error) => {
       assert.equal(error.statusCode, 409);
-      assert.match(error.message, /Available: 10, requested: 12/);
+      assert.match(error.message, /Disponibles: 10, solicitados: 12/);
       return true;
     }
   );
@@ -84,7 +84,7 @@ test('createSale returns 404 when the customer does not exist', async () => {
 
   await assert.rejects(
     () => service.createSale(baseSale),
-    (error) => error.statusCode === 404 && /Customer with ID 1 not found/.test(error.message)
+    (error) => error.statusCode === 404 && /No se encontró el cliente con ID 1/.test(error.message)
   );
 
   assert.ok(harness.has('ROLLBACK'));
@@ -132,7 +132,7 @@ test('refundSale rejects an already refunded sale with 409', async () => {
 
   await assert.rejects(
     () => service.refundSale(3),
-    (error) => error.statusCode === 409 && /already refunded/.test(error.message)
+    (error) => error.statusCode === 409 && /La venta ya fue reembolsada\./.test(error.message)
   );
 
   assert.ok(harness.has('ROLLBACK'));
@@ -149,7 +149,7 @@ test('refundSale returns 404 when the sale does not exist', async () => {
 
   await assert.rejects(
     () => service.refundSale(404),
-    (error) => error.statusCode === 404 && /Sale with ID 404 not found/.test(error.message)
+    (error) => error.statusCode === 404 && /No se encontró la venta con ID 404/.test(error.message)
   );
 
   assert.ok(harness.has('ROLLBACK'));

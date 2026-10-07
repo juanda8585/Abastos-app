@@ -38,13 +38,13 @@ function validateCreateBatchPayload(body) {
 
   if (employeeIds !== undefined) {
     if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
-      throw new HttpError(400, 'employeeIds must be a non-empty array of employee ids');
+      throw new HttpError(400, 'employeeIds debe ser un arreglo no vacío de IDs de empleado');
     }
 
     const normalizedIds = employeeIds.map((id, index) => {
       const numericId = Number(id);
       if (!Number.isInteger(numericId) || numericId <= 0) {
-        throw new HttpError(400, `employeeIds[${index}] must be a positive integer`);
+        throw new HttpError(400, `employeeIds[${index}] debe ser un entero positivo`);
       }
       return numericId;
     });
@@ -54,12 +54,12 @@ function validateCreateBatchPayload(body) {
 
   if (typeof employeeName === 'string' && employeeName.trim() !== '') {
     if (employeeName.trim().length > 100) {
-      throw new HttpError(400, 'employeeName must be 100 characters or fewer');
+      throw new HttpError(400, 'employeeName no puede superar los 100 caracteres');
     }
     return { employeeName: employeeName.trim() };
   }
 
-  throw new HttpError(400, 'employeeIds is required (at least one employee per batch)');
+  throw new HttpError(400, 'employeeIds es obligatorio (al menos un empleado por lote)');
 }
 
 /**
@@ -84,7 +84,7 @@ async function submitBatchDetails(req, res, next) {
     const { items } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'An array of items is required' });
+      return res.status(400).json({ error: 'Se requiere un arreglo de productos (items)' });
     }
 
     const result = await productionService.createBatchDetails(Number(batchId), items);
@@ -115,13 +115,13 @@ async function getBatchById(req, res, next) {
     const { batchId } = req.params;
     
     if (!batchId || isNaN(batchId)) {
-      return res.status(400).json({ error: 'Valid numeric batchId parameter is required' });
+      return res.status(400).json({ error: 'El parámetro del batchId debe ser numérico' });
     }
 
     const batch = await productionService.getBatchWithItems(Number(batchId));
     
     if (!batch) {
-      return res.status(404).json({ error: `Production batch with ID ${batchId} not found` });
+      return res.status(404).json({ error: `No se encontró el lote de producción con ID ${batchId}` });
     }
 
     return res.status(200).json(batch);
@@ -139,11 +139,11 @@ async function updateBatchItem(req, res, next) {
     const { quantityProduced, expirationDate } = req.body;
 
     if (!itemId || isNaN(itemId)) {
-      return res.status(400).json({ error: 'Valid numeric itemId parameter is required' });
+      return res.status(400).json({ error: 'El parámetro del itemId debe ser numérico' });
     }
 
     if (quantityProduced === undefined && expirationDate === undefined) {
-      return res.status(400).json({ error: 'Provide at least quantityProduced or expirationDate to update' });
+      return res.status(400).json({ error: 'Envíe al menos quantityProduced o expirationDate para actualizar' });
     }
 
     const result = await productionService.updateBatchItem(Number(itemId), {
@@ -165,7 +165,7 @@ async function deleteBatchItem(req, res, next) {
     const { itemId } = req.params;
 
     if (!itemId || isNaN(itemId)) {
-      return res.status(400).json({ error: 'Valid numeric itemId parameter is required' });
+      return res.status(400).json({ error: 'El parámetro del itemId debe ser numérico' });
     }
 
     const result = await productionService.deleteBatchItem(Number(itemId));

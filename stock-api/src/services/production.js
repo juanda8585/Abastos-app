@@ -35,7 +35,7 @@ class ProductionService {
         const knownIds = new Set(rosterResult.rows.map((row) => row.id));
         const unknownIds = requestedIds.filter((id) => !knownIds.has(id));
         if (unknownIds.length > 0) {
-          throw new HttpError(400, `Unknown employee id(s): ${unknownIds.join(', ')}`);
+          throw new HttpError(400, `ID(s) de empleado desconocido(s): ${unknownIds.join(', ')}`);
         }
         resolvedEmployeeIds = requestedIds;
       } else if (typeof employeeName === 'string' && employeeName.trim() !== '') {
@@ -44,11 +44,11 @@ class ProductionService {
           [employeeName.trim()]
         );
         if (rosterResult.rows.length === 0) {
-          throw new HttpError(404, `Employee "${employeeName.trim()}" is not in the roster`);
+          throw new HttpError(404, `El empleado "${employeeName.trim()}" no hace parte de la nómina`);
         }
         resolvedEmployeeIds = [rosterResult.rows[0].id];
       } else {
-        throw new HttpError(400, 'At least one employee is required (employeeIds)');
+        throw new HttpError(400, 'Debe incluir al menos un empleado (employeeIds)');
       }
 
       // 2. Header: employee attribution lives in production_batch_employees

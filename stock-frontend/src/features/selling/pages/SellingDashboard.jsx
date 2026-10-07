@@ -67,7 +67,7 @@ export default function SellingDashboard() {
         }
       } catch (err) {
         console.error('Failed to load POS data:', err);
-        setFeedback({ type: 'error', message: 'Failed to load POS data.' });
+        setFeedback({ type: 'error', message: 'Error al cargar los datos de POS.' });
       } finally {
         setLoading(false);
       }
@@ -86,7 +86,7 @@ export default function SellingDashboard() {
 
       if (existing) {
         if (existing.quantity_sold >= product.current_stock) {
-          setFeedback({ type: 'error', message: `Cannot exceed available stock (${product.current_stock}).` });
+          setFeedback({ type: 'error', message: `No se puede superar las existencias disponibles (${product.current_stock}).` });
           return prevCart;
         }
         return prevCart.map(item =>
@@ -97,7 +97,7 @@ export default function SellingDashboard() {
       }
 
       if (product.current_stock < 1) {
-        setFeedback({ type: 'error', message: `${product.name} is out of stock!` });
+        setFeedback({ type: 'error', message: `${product.name} ¡no tiene existencias!` });
         return prevCart;
       }
 
@@ -118,7 +118,7 @@ export default function SellingDashboard() {
           const newQty = item.quantity_sold + delta;
           if (newQty <= 0) return null;
           if (newQty > item.max_stock) {
-            setFeedback({ type: 'error', message: `Max stock reached (${item.max_stock})` });
+            setFeedback({ type: 'error', message: `Se alcanzó el máximo de existencias (${item.max_stock})` });
             return item;
           }
           return { ...item, quantity_sold: newQty };
@@ -149,7 +149,7 @@ export default function SellingDashboard() {
     if (cart.length === 0) return;
 
     if (!customerId) {
-      setFeedback({ type: 'error', message: 'Please select a customer before checking out.' });
+      setFeedback({ type: 'error', message: 'Seleccione un cliente antes de finalizar la compra.' });
       return;
     }
 
@@ -168,8 +168,11 @@ export default function SellingDashboard() {
 
     try {
       const res = await salesApi.createSale(payload);
-      const saleId = res?.id || res?.saleId || 'Success';
-      setFeedback({ type: 'success', message: `Sale #${saleId} placed successfully!` });
+      const saleId = res?.id || res?.saleId;
+      setFeedback({
+        type: 'success',
+        message: saleId ? `¡Venta #${saleId} registrada con éxito!` : '¡Venta registrada con éxito!'
+      });
 
       setProducts(prev => prev.map(prod => {
         const boughtItem = cart.find(c => c.product_id === prod.id);
@@ -182,7 +185,7 @@ export default function SellingDashboard() {
       setCart([]);
     } catch (err) {
       console.error(err);
-      setFeedback({ type: 'error', message: err.message || 'Failed to complete sale transaction.' });
+      setFeedback({ type: 'error', message: err.message || 'Error al registrar la venta.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -192,7 +195,7 @@ export default function SellingDashboard() {
     <div className="flex flex-col gap-4 h-[calc(100vh-6rem)]">
       {/* Navigation Tabs Header */}
       <div className="flex justify-between items-center bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
-        <h1 className="font-bold text-slate-800 text-lg">Sales Portal</h1>
+        <h1 className="font-bold text-slate-800 text-lg">Portal de Ventas</h1>
         <div className="flex bg-slate-100 p-1 rounded-lg gap-1">
           <button
             onClick={() => setActiveTab('pos')}
@@ -203,7 +206,7 @@ export default function SellingDashboard() {
             }`}
           >
             <Receipt className="w-3.5 h-3.5" />
-            New Sale (POS)
+            Nueva venta (POS)
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -214,7 +217,7 @@ export default function SellingDashboard() {
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            Sales History
+            Historial de ventas
           </button>
         </div>
       </div>
@@ -231,15 +234,15 @@ export default function SellingDashboard() {
           <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Products & Inventory</h2>
-                <span className="text-sm font-medium text-slate-500">{products.length} Items</span>
+                <h2 className="text-xl font-bold text-slate-800">Productos e Inventario</h2>
+                <span className="text-sm font-medium text-slate-500">{products.length} productos</span>
               </div>
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search products by name..."
+                  placeholder="Buscar productos por nombre..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -258,9 +261,9 @@ export default function SellingDashboard() {
 
             <div className="flex-1 p-4 overflow-y-auto">
               {loading ? (
-                <div className="flex items-center justify-center h-full text-slate-400">Loading catalog...</div>
+                <div className="flex items-center justify-center h-full text-slate-400">Cargando catálogo...</div>
               ) : filteredProducts.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-slate-400">No products found</div>
+                <div className="flex items-center justify-center h-full text-slate-400">No hay productos disponibles</div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {filteredProducts.map((prod) => {
@@ -278,11 +281,11 @@ export default function SellingDashboard() {
                       >
                         <div>
                           <p className="font-semibold text-slate-800 text-sm line-clamp-1">{prod.name}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">Stock: {prod.current_stock}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">Existencias: {prod.current_stock}</p>
                         </div>
                         <div className="mt-3 flex items-center justify-between w-full">
                           <span className="font-bold text-slate-900 text-xs">{formatCOP(prod.price)}</span>
-                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Add +</span>
+                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Agregar +</span>
                         </div>
                       </button>
                     );
@@ -296,12 +299,12 @@ export default function SellingDashboard() {
           <div className="w-full lg:w-96 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden shrink-0">
             <div className="p-4 border-b border-slate-200 flex items-center gap-2 bg-slate-50">
               <ShoppingCart className="w-5 h-5 text-slate-700" />
-              <h2 className="font-bold text-slate-800">Current Order</h2>
+              <h2 className="font-bold text-slate-800">Pedido actual</h2>
             </div>
 
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Select Customer</label>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Seleccionar cliente</label>
                 <div className="relative">
                   <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                   <select
@@ -310,7 +313,7 @@ export default function SellingDashboard() {
                     className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     {customers.length === 0 ? (
-                      <option value="">No active customers</option>
+                      <option value="">No hay clientes activos</option>
                     ) : (
                       customers.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -323,7 +326,7 @@ export default function SellingDashboard() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Employee Name</label>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Nombre del empleado</label>
                 <input
                   type="text"
                   value={employeeName}
@@ -337,7 +340,7 @@ export default function SellingDashboard() {
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
                   <ShoppingCart className="w-8 h-8 stroke-1" />
-                  <p className="text-sm">Cart is empty</p>
+                  <p className="text-sm">El carrito está vacío</p>
                 </div>
               ) : (
                 cart.map((item) => (
@@ -389,7 +392,7 @@ export default function SellingDashboard() {
                 onClick={handleCheckout}
                 className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg shadow-sm transition-all"
               >
-                {isSubmitting ? 'Processing...' : 'Complete Sale'}
+                {isSubmitting ? 'Procesando...' : 'Completar venta'}
               </button>
             </div>
           </div>

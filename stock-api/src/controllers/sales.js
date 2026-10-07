@@ -31,19 +31,19 @@ function validateSalePayload(body) {
 
   const customerId = Number(customer_id);
   if (!Number.isInteger(customerId) || customerId <= 0) {
-    throw new HttpError(400, 'customer_id must be a positive integer');
+    throw new HttpError(400, 'customer_id debe ser un entero positivo');
   }
 
   if (typeof employee_name !== 'string' || employee_name.trim() === '') {
-    throw new HttpError(400, 'employee_name is required');
+    throw new HttpError(400, 'employee_name es obligatorio');
   }
   const trimmedEmployee = employee_name.trim();
   if (trimmedEmployee.length > 100) {
-    throw new HttpError(400, 'employee_name must be 100 characters or fewer');
+    throw new HttpError(400, 'employee_name no puede superar los 100 caracteres');
   }
 
   if (!Array.isArray(items) || items.length === 0) {
-    throw new HttpError(400, 'A non-empty items array is required');
+    throw new HttpError(400, 'Se requiere un arreglo de productos (items) no vacío');
   }
 
   const normalizedItems = items.map((item, index) => {
@@ -52,13 +52,13 @@ function validateSalePayload(body) {
     const unitPrice = Number(item?.unit_price);
 
     if (!Number.isInteger(productId) || productId <= 0) {
-      throw new HttpError(400, `items[${index}].product_id must be a positive integer`);
+      throw new HttpError(400, `items[${index}].product_id debe ser un entero positivo`);
     }
     if (!Number.isFinite(quantitySold) || quantitySold <= 0) {
-      throw new HttpError(400, `items[${index}].quantity_sold must be greater than 0`);
+      throw new HttpError(400, `items[${index}].quantity_sold debe ser mayor a 0`);
     }
     if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-      throw new HttpError(400, `items[${index}].unit_price must be 0 or greater`);
+      throw new HttpError(400, `items[${index}].unit_price debe ser mayor o igual a 0`);
     }
 
     return {
@@ -109,13 +109,13 @@ async function getSaleById(req, res, next) {
     const { id } = req.params;
 
     if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Valid numeric sale ID parameter is required' });
+      return res.status(400).json({ error: 'El parámetro del ID de la venta debe ser numérico' });
     }
 
     const sale = await saleService.getSaleById(Number(id));
 
     if (!sale) {
-      return res.status(404).json({ error: `Sale with ID ${id} not found` });
+      return res.status(404).json({ error: `No se encontró la venta con ID ${id}` });
     }
 
     return res.status(200).json(sale);
@@ -132,7 +132,7 @@ async function refundSale(req, res, next) {
     const { id } = req.params;
 
     if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Valid numeric sale ID parameter is required' });
+      return res.status(400).json({ error: 'El parámetro del ID de la venta debe ser numérico' });
     }
 
     const result = await saleService.refundSale(Number(id));

@@ -47,7 +47,7 @@ test('createBatch rejects an unknown employee id without writing a header', asyn
     () => service.createBatch({ employeeIds: [1, 999] }),
     (error) => {
       assert.equal(error.statusCode, 400);
-      assert.match(error.message, /Unknown employee id\(s\): 999/);
+      assert.match(error.message, /ID\(s\) de empleado desconocido\(s\): 999/);
       return true;
     }
   );
@@ -87,7 +87,7 @@ test('createBatch returns 404 when the legacy name is not in the roster', async 
 
   await assert.rejects(
     () => service.createBatch({ employeeName: 'Ghost' }),
-    (error) => error.statusCode === 404 && /not in the roster/.test(error.message)
+    (error) => error.statusCode === 404 && /no hace parte de la nómina/.test(error.message)
   );
 
   assert.ok(harness.has('ROLLBACK'));
@@ -100,7 +100,7 @@ test('createBatch requires at least one employee', async () => {
 
   await assert.rejects(
     () => service.createBatch({}),
-    (error) => error.statusCode === 400 && /At least one employee/.test(error.message)
+    (error) => error.statusCode === 400 && /Debe incluir al menos un empleado \(employeeIds\)/.test(error.message)
   );
 
   assert.ok(harness.has('ROLLBACK'));

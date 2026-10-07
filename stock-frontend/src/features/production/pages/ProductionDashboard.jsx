@@ -44,7 +44,7 @@ export default function ProductionDashboard() {
       setTotal(Number(data.total) || 0);
       setError(null);
     } catch (err) {
-      setError('Failed to download production records from api service.');
+      setError('Error al cargar los registros de producción del servicio API.');
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export default function ProductionDashboard() {
         setItemsToSubmit([]);
       }
     } catch (err) {
-      alert('Error initializing batch header.');
+      alert('Error al inicializar el lote de producción.');
     }
   };
 
@@ -155,7 +155,7 @@ export default function ProductionDashboard() {
       }
       handleCloseCreateModal(); // Close modal and clean up
     } catch (err) {
-      alert('Error finalizing batch items entry processing.');
+      alert('Error al finalizar el registro de elementos del lote.');
     }
   };
 
@@ -165,7 +165,7 @@ export default function ProductionDashboard() {
       const detailedData = await productionApi.getBatchById(id);
       setSelectedBatch(detailedData);
     } catch (err) {
-      alert('Failed to retrieve batch elements.');
+      alert('Error al cargar los elementos del lote.');
     }
   };
 
@@ -174,14 +174,14 @@ export default function ProductionDashboard() {
       {/* Top Banner and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Production Dashboard</h1>
-          <p className="text-sm text-slate-500 font-medium">Monitor and manage your active batch records</p>
+          <h1 className="text-2xl font-bold text-slate-900">Panel de Producción</h1>
+          <p className="text-sm text-slate-500 font-medium">Supervise y gestione sus lotes de producción activos</p>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors text-sm"
         >
-          <Plus className="h-5 w-5" /> Open Production Batch
+          <Plus className="h-5 w-5" /> Abrir lote de producción
         </button>
       </div>
 
@@ -192,7 +192,7 @@ export default function ProductionDashboard() {
             <Layers className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Total System Batches</p>
+            <p className="text-sm font-medium text-slate-500">Total de lotes en el sistema</p>
             <h3 className="text-2xl font-bold text-slate-900">{total}</h3>
           </div>
         </div>
@@ -201,24 +201,24 @@ export default function ProductionDashboard() {
       {/* Main Core Layout Ledger View */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
-          <List className="text-slate-500 h-5 w-5" /> Production Batch Ledger History Logs
+          <List className="text-slate-500 h-5 w-5" /> Historial del registro de lotes de producción
         </h3>
 
         {loading ? (
-          <div className="text-center py-12 text-slate-500 text-sm">Processing api data streams...</div>
+          <div className="text-center py-12 text-slate-500 text-sm">Cargando datos de la API...</div>
         ) : error ? (
           <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-200">{error}</div>
         ) : batches.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-sm">No historical production runs recorded in database storage yet.</div>
+          <div className="text-center py-12 text-slate-400 text-sm">Aún no hay lotes de producción registrados en la base de datos.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase tracking-wider">
-                  <th className="px-4 py-3">Batch ID</th>
-                  <th className="px-4 py-3">Employees</th>
-                  <th className="px-4 py-3">Timestamp Run</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3">ID del lote</th>
+                  <th className="px-4 py-3">Empleados</th>
+                  <th className="px-4 py-3">Fecha y hora</th>
+                  <th className="px-4 py-3 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -226,17 +226,17 @@ export default function ProductionDashboard() {
                   <tr key={b.id || b.batchId} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">#{b.id || b.batchId}</td>
                     <td className="px-4 py-3 font-medium">
-                      {(b.employees || []).map((emp) => emp.name).join(', ') || 'None assigned'}
+                      {(b.employees || []).map((emp) => emp.name).join(', ') || 'Sin asignar'}
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
-                      {b.created_at ? new Date(b.created_at).toLocaleString() : 'N/A'}
+                      {b.created_at ? new Date(b.created_at).toLocaleString('es-CO') : 'N/D'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => handleViewBatchDetails(b.id || b.batchId)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded text-xs font-semibold transition-colors"
                       >
-                        <Eye className="h-3.5 w-3.5" /> Details
+                        <Eye className="h-3.5 w-3.5" /> Detalles
                       </button>
                     </td>
                   </tr>
@@ -250,7 +250,7 @@ export default function ProductionDashboard() {
         {!loading && !error && total > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 mt-4">
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <label htmlFor="ledger-page-size" className="font-medium">Rows per page</label>
+              <label htmlFor="ledger-page-size" className="font-medium">Filas por página</label>
               <select
                 id="ledger-page-size"
                 value={pageSize}
@@ -262,7 +262,7 @@ export default function ProductionDashboard() {
                 ))}
               </select>
               <span className="ml-2">
-                Showing {page * pageSize + 1}&ndash;{Math.min((page + 1) * pageSize, total)} of {total}
+                Mostrando {page * pageSize + 1}&ndash;{Math.min((page + 1) * pageSize, total)} de {total}
               </span>
             </div>
 
@@ -273,16 +273,16 @@ export default function ProductionDashboard() {
                 disabled={page === 0}
                 className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                <ChevronLeft className="h-3.5 w-3.5" /> Anterior
               </button>
-              <span className="text-slate-500 font-medium px-1">Page {page + 1} of {pageCount}</span>
+              <span className="text-slate-500 font-medium px-1">Página {page + 1} de {pageCount}</span>
               <button
                 type="button"
                 onClick={() => goToPage(page + 1)}
                 disabled={page >= pageCount - 1}
                 className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Next <ChevronRight className="h-3.5 w-3.5" />
+                Siguiente <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function ProductionDashboard() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <h3 className="text-lg font-bold flex items-center gap-2">
-                <Plus className="text-emerald-400 h-5 w-5" /> Open Production Batch
+                <Plus className="text-emerald-400 h-5 w-5" /> Abrir lote de producción
               </h3>
               <button 
                 onClick={handleCloseCreateModal} 
@@ -311,12 +311,12 @@ export default function ProductionDashboard() {
                 <form onSubmit={handleStartBatch} className="space-y-4">
                   <div>
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase mb-2">
-                      <User className="h-3.5 w-3.5" /> Employees working on this batch
+                      <User className="h-3.5 w-3.5" /> Empleados que trabajan en este lote
                     </label>
 
                     {employees.length === 0 ? (
                       <p className="text-sm text-slate-400">
-                        No employees in the roster yet.
+                        Aún no hay empleados en la nómina.
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
@@ -344,8 +344,8 @@ export default function ProductionDashboard() {
 
                     <p className={`text-xs mt-2 ${employeeIds.length === 0 ? 'text-rose-600' : 'text-slate-500'}`}>
                       {employeeIds.length === 0
-                        ? 'Select at least one employee.'
-                        : `${employeeIds.length} employee${employeeIds.length === 1 ? '' : 's'} selected: ${selectedEmployeeNames.join(', ')}`}
+                        ? 'Seleccione al menos un empleado.'
+                        : `Selección de ${employeeIds.length} empleado${employeeIds.length === 1 ? '' : 's'}: ${selectedEmployeeNames.join(', ')}`}
                     </p>
                   </div>
                   <button 
@@ -353,20 +353,20 @@ export default function ProductionDashboard() {
                     disabled={employeeIds.length === 0}
                     className="w-full bg-slate-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >
-                    Initialize Active Batch
+                    Iniciar lote activo
                   </button>
                 </form>
               ) : (
                 /* Step B: The batch header is created, now add items to it */
                 <div className="space-y-6">
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-                    <strong>Active Batch initialized: #{activeBatchId}</strong><br/>
-                    Employees: {selectedEmployeeNames.join(', ')}
+                    <strong>Lote activo iniciado: #{activeBatchId}</strong><br/>
+                    Empleados: {selectedEmployeeNames.join(', ')}
                   </div>
 
                   {/* Local Staging Inline Form Submitting row items with Product Dropdown */}
                   <form onSubmit={handleAddItemToStage} className="space-y-3 pt-2 border-t border-slate-100">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Add Batch Items</h4>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Agregar elementos al lote</h4>
                     <div>
                       <select
                         required
@@ -374,7 +374,7 @@ export default function ProductionDashboard() {
                         onChange={(e) => setNewItem({ ...newItem, productId: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
                       >
-                        <option value="" disabled>Select Product Name</option>
+                        <option value="" disabled>Seleccionar producto</option>
                         {products.map((product) => (
                           <option key={product.id} value={product.id}>
                             {product.name}
@@ -385,7 +385,7 @@ export default function ProductionDashboard() {
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"
-                        placeholder="Qty Produced"
+                        placeholder="Cantidad producida"
                         required
                         value={newItem.quantityProduced}
                         onChange={(e) => setNewItem({ ...newItem, quantityProduced: e.target.value })}
@@ -399,7 +399,7 @@ export default function ProductionDashboard() {
                       />
                     </div>
                     <button type="submit" className="w-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold py-2 rounded-lg hover:bg-slate-200 flex items-center justify-center gap-1 transition-colors">
-                      <PlusCircle className="h-4 w-4" /> Stage Item Row
+                      <PlusCircle className="h-4 w-4" /> Agregar elemento a la lista
                     </button>
                   </form>
 
@@ -407,7 +407,7 @@ export default function ProductionDashboard() {
                   {itemsToSubmit.length > 0 && (
                     <div className="space-y-3 pt-4 border-t border-slate-100">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-700 uppercase">Staged Registry Elements</span>
+                        <span className="text-xs font-bold text-slate-700 uppercase">Elementos agregados</span>
                         <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full font-bold">{itemsToSubmit.length}</span>
                       </div>
                       <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
@@ -418,9 +418,9 @@ export default function ProductionDashboard() {
                             <div key={idx} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded border border-slate-100">
                               <div>
                                 <p className="font-semibold text-slate-800">
-                                  {productObj ? productObj.name : `Prod ID: ${itm.productId}`}
+                                  {productObj ? productObj.name : `ID del producto: ${itm.productId}`}
                                 </p>
-                                <p className="text-slate-500">Qty: {itm.quantityProduced} {itm.expirationDate && `| Exp: ${itm.expirationDate}`}</p>
+                                <p className="text-slate-500">Cantidad: {itm.quantityProduced} {itm.expirationDate && `| Vencimiento: ${itm.expirationDate}`}</p>
                               </div>
                               <button onClick={() => setItemsToSubmit(itemsToSubmit.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700">
                                 <Trash2 className="h-4 w-4" />
@@ -430,7 +430,7 @@ export default function ProductionDashboard() {
                         })}
                       </div>
                       <button onClick={handleFinalizeBatch} className="w-full bg-emerald-600 text-white text-sm font-semibold py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1 shadow-sm">
-                        <CheckCircle2 className="h-4 w-4" /> Finalize & Submit Batch
+                        <CheckCircle2 className="h-4 w-4" /> Finalizar y enviar lote
                       </button>
                     </div>
                   )}
@@ -447,29 +447,29 @@ export default function ProductionDashboard() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <div>
-                <h3 className="font-bold text-lg">Inspection Panel: Batch #{selectedBatch.batch_id}</h3>
+                <h3 className="font-bold text-lg">Panel de inspección: Lote #{selectedBatch.batch_id}</h3>
                 <p className="text-xs text-slate-400">
-                  Employees: {(selectedBatch.employees || []).map((emp) => emp.name).join(', ') || 'None assigned'}
+                  Empleados: {(selectedBatch.employees || []).map((emp) => emp.name).join(', ') || 'Sin asignar'}
                 </p>
               </div>
               <button onClick={() => setSelectedBatch(null)} className="text-slate-400 hover:text-white text-sm font-semibold bg-slate-800 px-3 py-1.5 rounded-lg transition-colors">
-                Close
+                Cerrar
               </button>
             </div>
             
             <div className="p-6 overflow-y-auto space-y-4">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Registered Components Array</h4>
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Elementos registrados</h4>
               {!selectedBatch.items || selectedBatch.items.length === 0 ? (
-                <p className="text-sm text-slate-500 italic">No entry rows attached to this layout frame shell header node.</p>
+                <p className="text-sm text-slate-500 italic">Aún no hay elementos registrados en este lote.</p>
               ) : (
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                       <tr>
-                        <th className="p-3">Item ID</th>
-                        <th className="p-3">Product ID</th>
-                        <th className="p-3">Quantity</th>
-                        <th className="p-3">Expiration Date</th>
+                        <th className="p-3">ID del elemento</th>
+                        <th className="p-3">ID del producto</th>
+                        <th className="p-3">Cantidad</th>
+                        <th className="p-3">Fecha de vencimiento</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -480,11 +480,11 @@ export default function ProductionDashboard() {
                           <tr key={item.id} className="hover:bg-slate-50">
                             <td className="p-3 font-mono text-slate-400">#{item.productId}</td>
                             <td className="p-3 font-semibold text-slate-900">
-                              {productObj ? productObj.name : `Prod ${prodId}`}
+                              {productObj ? productObj.name : `Producto ${prodId}`}
                             </td>
-                            <td className="p-3 font-medium text-slate-700">{item.quantityProduced} units</td>
+                            <td className="p-3 font-medium text-slate-700">{item.quantityProduced} unidades</td>
                             <td className="p-3 text-slate-500">
-                              {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString() : 'None Marked'}
+                              {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-CO') : 'Sin registrar'}
                             </td>
                           </tr>
                         );

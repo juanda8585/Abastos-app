@@ -39,7 +39,7 @@ export default function AdminDashboard() {
         setError(null);
       })
       .catch((err) => {
-        setError(err.response?.data?.error || err.message || 'Failed to load admin data.');
+        setError(err.response?.data?.error || err.message || 'Error al cargar los datos de administración.');
       })
       .finally(() => setLoading(false));
   }, []);
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
   const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (!newEmployeeName.trim()) {
-      setFormError('Name is required.');
+      setFormError('El nombre es obligatorio.');
       return;
     }
 
@@ -77,12 +77,12 @@ export default function AdminDashboard() {
     try {
       const created = await employeeApi.createEmployee(newEmployeeName.trim());
       closeAddModal();
-      setFeedback({ type: 'success', message: `"${created.name}" added to the roster.` });
+      setFeedback({ type: 'success', message: `"${created.name}" agregado a la nómina.` });
       setEmployees((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
       );
     } catch (err) {
-      setFormError(err.response?.data?.error || err.message || 'Failed to add employee.');
+      setFormError(err.response?.data?.error || err.message || 'Error al guardar el empleado.');
     } finally {
       setIsSubmitting(false);
     }
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
       setBatches(data.batches);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to load admin data.');
+      setError(err.response?.data?.error || err.message || 'Error al cargar los datos de administración.');
     } finally {
       setLoading(false);
     }
@@ -107,14 +107,14 @@ export default function AdminDashboard() {
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Admin Console</h1>
-          <p className="text-sm text-slate-500 font-medium">Manage the employee roster and system records</p>
+          <h1 className="text-2xl font-bold text-slate-900">Consola de administración</h1>
+          <p className="text-sm text-slate-500 font-medium">Administra la nómina de empleados y los registros del sistema</p>
         </div>
         <button
           onClick={openAddModal}
           className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors text-sm"
         >
-          <UserPlus className="h-5 w-5" /> Add Employee
+          <UserPlus className="h-5 w-5" /> Agregar empleado
         </button>
       </div>
 
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
             <Users className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Employees in Roster</p>
+            <p className="text-sm font-medium text-slate-500">Empleados en la nómina</p>
             <h3 className="text-2xl font-bold text-slate-900">{employees.length}</h3>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
             <Layers className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Production Batches Recorded</p>
+            <p className="text-sm font-medium text-slate-500">Lotes de producción registrados</p>
             <h3 className="text-2xl font-bold text-slate-900">{batches.length}</h3>
           </div>
         </div>
@@ -158,25 +158,25 @@ export default function AdminDashboard() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Users className="text-slate-500 h-5 w-5" /> Employee Roster
+            <Users className="text-slate-500 h-5 w-5" /> Nómina de empleados
           </h3>
           <button
             onClick={handleRefresh}
             disabled={loading}
             className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-            title="Refresh roster"
+            title="Actualizar nómina"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-slate-500 text-sm">Loading roster...</div>
+          <div className="text-center py-12 text-slate-500 text-sm">Cargando nómina...</div>
         ) : error ? (
           <div className="bg-rose-50 text-rose-700 p-4 rounded-xl text-sm border border-rose-200">{error}</div>
         ) : employees.length === 0 ? (
           <div className="text-center py-12 text-slate-400 text-sm">
-            No employees yet. Use <strong>Add Employee</strong> to create the first one.
+            Aún no hay empleados. Utiliza <strong>Agregar empleado</strong> para crear el primero.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-800 text-sm truncate">{emp.name}</p>
                   <p className="text-xs text-slate-500">
-                    {batchCountByEmployee[emp.id] || 0} batch{(batchCountByEmployee[emp.id] || 0) === 1 ? '' : 'es'} worked
+                    {batchCountByEmployee[emp.id] || 0} {(batchCountByEmployee[emp.id] || 0) === 1 ? 'lote trabajado' : 'lotes trabajados'}
                   </p>
                 </div>
               </div>
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
               <h3 className="text-lg font-bold flex items-center gap-2">
-                <UserPlus className="text-emerald-400 h-5 w-5" /> Add Employee
+                <UserPlus className="text-emerald-400 h-5 w-5" /> Agregar empleado
               </h3>
               <button
                 onClick={closeAddModal}
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
             <form onSubmit={handleAddEmployee} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                  Full Name
+                  Nombre completo
                 </label>
                 <input
                   type="text"
@@ -224,11 +224,11 @@ export default function AdminDashboard() {
                   maxLength={100}
                   value={newEmployeeName}
                   onChange={(e) => setNewEmployeeName(e.target.value)}
-                  placeholder="e.g. Carlos Gomez"
+                  placeholder="Ejemplo: Carlos Gómez"
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  The name must be unique and is used to staff production batches.
+                  El nombre debe ser único y se usa para asignar empleados a los lotes de producción.
                 </p>
               </div>
 
@@ -245,14 +245,14 @@ export default function AdminDashboard() {
                   disabled={isSubmitting || !newEmployeeName.trim()}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 rounded-lg transition-colors"
                 >
-                  {isSubmitting ? 'Saving...' : 'Add to Roster'}
+                  {isSubmitting ? 'Guardando...' : 'Agregar a la nómina'}
                 </button>
                 <button
                   type="button"
                   onClick={closeAddModal}
                   className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  Cancelar
                 </button>
               </div>
             </form>

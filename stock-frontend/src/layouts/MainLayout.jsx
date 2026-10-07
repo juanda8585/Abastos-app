@@ -5,10 +5,10 @@ export default function MainLayout() {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Production', path: '/production', icon: Factory },
-    { name: 'Stock Dashboard', path: '/stock', icon: BarChart3 },
-    { name: 'Selling / POS', path: '/selling', icon: ShoppingCart },
-    { name: 'Admin', path: '/admin', icon: Settings },
+    { name: 'Producción', path: '/production', icon: Factory },
+    { name: 'Inventario', path: '/stock', icon: BarChart3 },
+    { name: 'Ventas / POS', path: '/selling', icon: ShoppingCart },
+    { name: 'Administración', path: '/admin', icon: Settings },
   ];
 
   return (
@@ -19,7 +19,7 @@ export default function MainLayout() {
           {/* Brand Logo Header */}
           <div className="h-16 flex items-center gap-2 px-6 border-b border-slate-800">
             <Store className="text-emerald-400 h-6 w-6" />
-            <span className="font-bold text-lg tracking-wider">ABASTOS SYSTEM</span>
+            <span className="font-bold text-lg tracking-wider">BUBALA SYSTEM</span>
           </div>
 
           {/* Navigation Links */}
@@ -48,7 +48,7 @@ export default function MainLayout() {
 
         {/* System Version Footer */}
         <div className="p-4 text-xs text-slate-500 border-t border-slate-800 text-center">
-          v1.0.0 © 2026 Abastos Inc.
+          v1.0.0 © 2026 Bubala Inc.
         </div>
       </aside>
 
@@ -56,7 +56,7 @@ export default function MainLayout() {
       <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm">
           <h1 className="text-xl font-semibold text-slate-800">
-            {navigation.find(n => location.pathname.startsWith(n.path))?.name || 'Dashboard'}
+            {navigation.find(n => location.pathname.startsWith(n.path))?.name || 'Panel'}
           </h1>
         </header>
         
