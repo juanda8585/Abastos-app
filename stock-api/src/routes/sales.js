@@ -15,6 +15,11 @@ router.post('/sales', salesController.createSale);
 // GET /api/sales/:id - Fetch details for a specific sale
 router.get('/sales/:id', salesController.getSaleById);
 
+// POST /api/sales/:id/status - Move a sale through its statuses
+// (body: { status: 'paid' | 'cancelled' | ... }; stock is restored when the
+// new status voids the sale)
+router.post('/sales/:id/status', salesController.updateSaleStatus);
+
 // POST /api/sales/:id/refund - Refund/Cancel sale and restore inventory
 router.post('/sales/:id/refund', salesController.refundSale);
 

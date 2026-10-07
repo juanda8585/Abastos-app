@@ -123,6 +123,28 @@ test('createSale locks stock rows in ascending product id order regardless of li
   assert.ok(harness.has('COMMIT'));
 });
 
+test('createSale stores the new sale as pending', async () => {
+  const harness = createHarness((sql, params) => {
+    if (sql.includes('FROM customers')) return { rows: [{ id: 1 }] };
+    if (sql.includes('FROM stock_levels')) return { rows: [{ current_stock: '10' }] };
+    if (sql.includes('INSERT INTO sales')) {
+      return { rows: [{ id: 7, customer_id: 1, employee_name: 'Yanira', status: 'pending', sale_date: '2026-10-05', created_at: new Date() }] };
+    }
+    if (sql.includes('INSERT INTO sale_items')) {
+      return { rows: [{ id: 100, product_id: params[1], quantity_sold: params[2], unit_price: params[3] }] };
+    }
+    return { rows: [] };
+  });
+  const service = new SaleService(harness.pool);
+
+  const sale = await service.createSale(baseSale);
+
+  const inserts = harness.find('INSERT INTO sales');
+  assert.equal(inserts.length, 1);
+  assert.ok(inserts[0].sql.includes(`'pending'`), 'a new sale must start as pending');
+  assert.equal(sale.status, 'pending');
+});
+
 test('refundSale rejects an already refunded sale with 409', async () => {
   const harness = createHarness((sql) => {
     if (sql.includes('FROM sales')) return { rows: [{ status: 'refunded' }] };
@@ -201,4 +223,125 @@ test('refundSale rolls back and preserves the original error when a statement fa
 
   assert.ok(harness.has('ROLLBACK'));
   assert.ok(!harness.has('COMMIT'));
+});
+
+test('updateSaleStatus moves a pending sale to paid without touching stock', async () => {
+  const harness = createHarness((sql, params) => {
+    if (sql.includes('FROM sales')) return { rows: [{ status: 'pending' }] };
+    if (sql.includes('UPDATE sales')) {
+      return { rows: [{ id: 8, customer_id: 1, status: params[1], sale_date: '2026-10-05' }] };
+    }
+    return { rows: [] };
+  });
+  const service = new SaleService(harness.pool);
+
+  const sale = await service.updateSaleStatus(8, 'paid');
+
+  assert.equal(sale.status, 'paid');
+  assert.ok(harness.has('FOR UPDATE'), 'the sale row must be locked while it changes status');
+  assert.equal(harness.find('UPDATE sales').length, 1, 'exactly one status write');
+  assert.equal(harness.find('UPDATE stock_levels').length, 0, 'paying must not move stock');
+  assert.equal(harness.find('INSERT INTO stock_levels').length, 0, 'paying must not restock');
+  assert.equal(harness.find('inventory_movements').length, 0, 'paying must not write ledger entries');
+  assert.ok(harness.has('COMMIT'));
+  assert.ok(!harness.has('ROLLBACK'));
+});
+
+test('updateSaleStatus cancels a pending sale and restocks every line', async () => {
+  const harness = createHarness((sql, params) => {
+    if (sql.includes('FROM sales')) return { rows: [{ status: 'pending' }] };
+    if (sql.includes('FROM sale_items')) {
+      return {
+        rows: [
+          { product_id: 1, quantity_sold: '5' },
+          { product_id: 2, quantity_sold: '3' },
+        ],
+      };
+    }
+    if (sql.includes('UPDATE sales')) {
+      return { rows: [{ id: 9, customer_id: 1, status: params[1], sale_date: '2026-10-05' }] };
+    }
+    return { rows: [] };
+  });
+  const service = new SaleService(harness.pool);
+
+  const sale = await service.updateSaleStatus(9, 'cancelled');
+
+  assert.equal(sale.status, 'cancelled');
+  assert.ok(harness.has('ORDER BY product_id ASC'), 'restock order must be deterministic');
+  assert.equal(harness.find('ON CONFLICT (product_id) DO UPDATE').length, 2, 'upsert per line item');
+  assert.equal(harness.find("'adjustment'").length, 2, 'one ledger entry per line item');
+  assert.ok(harness.has('COMMIT'));
+  assert.ok(!harness.has('ROLLBACK'));
+});
+
+test('updateSaleStatus rejects an illegal transition with 409', async () => {
+  const harness = createHarness((sql) => {
+    if (sql.includes('FROM sales')) return { rows: [{ status: 'paid' }] };
+    return { rows: [] };
+  });
+  const service = new SaleService(harness.pool);
+
+  // A paid sale may only move forward, never back to pending.
+  await assert.rejects(
+    () => service.updateSaleStatus(8, 'pending'),
+    (error) => error.statusCode === 409 && /de "pagada" a "pendiente"/.test(error.message)
+  );
+
+  assert.equal(harness.find('UPDATE sales').length, 0, 'status must be left untouched');
+  assert.equal(harness.find('inventory_movements').length, 0, 'stock must be left untouched');
+  assert.ok(harness.has('ROLLBACK'));
+  assert.ok(!harness.has('COMMIT'));
+});
+
+test('updateSaleStatus refuses to touch a terminal sale', async () => {
+  const cases = [
+    ['cancelled', 'refunded', 'La venta ya fue cancelada.'],
+    ['refunded', 'cancelled', 'La venta ya fue reembolsada.'],
+  ];
+
+  for (const [currentStatus, targetStatus, expectedMessage] of cases) {
+    const harness = createHarness((sql) => {
+      if (sql.includes('FROM sales')) return { rows: [{ status: currentStatus }] };
+      return { rows: [] };
+    });
+    const service = new SaleService(harness.pool);
+
+    await assert.rejects(
+      () => service.updateSaleStatus(8, targetStatus),
+      (error) => error.statusCode === 409 && error.message === expectedMessage,
+      `expected 409 for ${currentStatus} -> ${targetStatus}`
+    );
+
+    assert.equal(harness.find('UPDATE sales').length, 0, 'terminal sales keep their status');
+    assert.equal(harness.find('ON CONFLICT (product_id) DO UPDATE').length, 0, 'stock must never be restocked twice');
+    assert.ok(harness.has('ROLLBACK'));
+  }
+});
+
+test('updateSaleStatus returns 404 when the sale does not exist', async () => {
+  const harness = createHarness((sql) => {
+    if (sql.includes('FROM sales')) return { rows: [] };
+    return { rows: [] };
+  });
+  const service = new SaleService(harness.pool);
+
+  await assert.rejects(
+    () => service.updateSaleStatus(55, 'paid'),
+    (error) => error.statusCode === 404 && /No se encontró la venta con ID 55/.test(error.message)
+  );
+
+  assert.ok(harness.has('ROLLBACK'));
+});
+
+test('updateSaleStatus rejects an unknown target status before opening a transaction', async () => {
+  const harness = createHarness();
+  const service = new SaleService(harness.pool);
+
+  await assert.rejects(
+    () => service.updateSaleStatus(8, 'shipped'),
+    (error) => error.statusCode === 400 && /Estado de venta no válido "shipped"/.test(error.message)
+  );
+
+  assert.equal(harness.log.length, 0, 'no statement may be issued for an unknown status');
 });

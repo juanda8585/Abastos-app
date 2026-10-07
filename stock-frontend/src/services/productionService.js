@@ -92,7 +92,15 @@ export const salesApi = {
     return response.data;
   },
 
-  // 4. POST /api/sales/:id/refund -> Refunds sale and restores stock
+  // 4. POST /api/sales/:id/status -> Move a sale through its statuses
+  //    ('pending' -> 'paid', 'pending' -> 'cancelled', 'paid' -> 'refunded').
+  //    Cancelling/refunding returns the reserved stock to the warehouse.
+  updateSaleStatus: async (saleId, status) => {
+    const response = await api.post(`/api/sales/${saleId}/status`, { status });
+    return response.data;
+  },
+
+  // 5. POST /api/sales/:id/refund -> Refunds sale and restores stock
   refundSale: async (saleId) => {
     const response = await api.post(`/api/sales/${saleId}/refund`);
     return response.data;

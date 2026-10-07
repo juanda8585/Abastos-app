@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { productionApi, salesApi, customerApi } from '../../../services/productionService';
 import SalesList from './SalesList';
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, CheckCircle2, AlertCircle, Receipt, History } from 'lucide-react';
+import { statusBadge, statusLabel, isSettled } from '../saleStatus';
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, CheckCircle2, AlertCircle, Receipt, History, Check, Ban, X } from 'lucide-react';
 
 export default function SellingDashboard() {
   // Tab State: 'pos' or 'history'
@@ -23,6 +24,13 @@ export default function SellingDashboard() {
   // UI Status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  // Sale created by the last checkout, still pending payment
+  // { id, status, items } - `items` is the snapshot needed to give the
+  // stock back locally if the sale is cancelled.
+  const [lastSale, setLastSale] = useState(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   // Helper function to format Colombian Pesos
   const formatCOP = (amount) => {
@@ -169,9 +177,18 @@ export default function SellingDashboard() {
     try {
       const res = await salesApi.createSale(payload);
       const saleId = res?.id || res?.saleId;
+
+      // The API stores the sale as `pending`: offer the payment/cancellation
+      // right away instead of making the cashier hunt for it later.
+      if (saleId) {
+        setLastSale({ id: saleId, status: res?.status || 'pending', items: payload.items });
+        setConfirmingCancel(false);
+      }
       setFeedback({
         type: 'success',
-        message: saleId ? `¡Venta #${saleId} registrada con éxito!` : '¡Venta registrada con éxito!'
+        message: saleId
+          ? `Venta #${saleId} registrada como pendiente. Marca su pago o cancélala.`
+          : '¡Venta registrada con éxito!'
       });
 
       setProducts(prev => prev.map(prod => {
@@ -188,6 +205,44 @@ export default function SellingDashboard() {
       setFeedback({ type: 'error', message: err.message || 'Error al registrar la venta.' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Moves the just-created sale to `paid` or `cancelled`.
+   *
+   * Cancelling restocks on the server, so the local catalog is patched with
+   * the same quantities to keep both views in sync.
+   */
+  const handleLastSaleStatus = async (status) => {
+    if (!lastSale?.id || isUpdatingStatus) return;
+
+    setIsUpdatingStatus(true);
+    setFeedback(null);
+
+    try {
+      const updated = await salesApi.updateSaleStatus(lastSale.id, status);
+      const newStatus = updated?.status || status;
+      setLastSale(prev => (prev ? { ...prev, status: newStatus } : prev));
+      setConfirmingCancel(false);
+
+      if (newStatus === 'cancelled') {
+        setProducts(prev => prev.map(prod => {
+          const sold = lastSale.items.find(item => item.product_id === prod.id);
+          return sold ? { ...prod, current_stock: prod.current_stock + sold.quantity_sold } : prod;
+        }));
+        setFeedback({ type: 'success', message: `Venta #${lastSale.id} cancelada. El stock volvió al inventario.` });
+      } else {
+        setFeedback({ type: 'success', message: `Venta #${lastSale.id} marcada como pagada.` });
+      }
+    } catch (err) {
+      console.error(err);
+      setFeedback({
+        type: 'error',
+        message: err.response?.data?.error || err.message || 'Error al actualizar la venta.'
+      });
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -302,6 +357,70 @@ export default function SellingDashboard() {
               <h2 className="font-bold text-slate-800">Pedido actual</h2>
             </div>
 
+            {/* Status of the sale created by the last checkout */}
+            {lastSale && (
+              <div className="p-3 border-b border-slate-200 bg-white space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-bold text-slate-800 text-sm truncate">Venta #{lastSale.id}</span>
+                    <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold shrink-0 ${statusBadge(lastSale.status)}`}>
+                      {statusLabel(lastSale.status)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setLastSale(null); setConfirmingCancel(false); }}
+                    className="p-1 text-slate-400 hover:text-slate-600"
+                    title="Ocultar panel de venta"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {isSettled(lastSale.status) ? (
+                  <p className="text-xs text-slate-500">
+                    {lastSale.status === 'cancelled'
+                      ? 'Venta cancelada: el stock fue devuelto al inventario.'
+                      : 'Venta pagada. Ya puedes iniciar la siguiente.'}
+                  </p>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleLastSaleStatus('paid')}
+                      disabled={isUpdatingStatus}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xs font-semibold transition-all"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {isUpdatingStatus ? 'Procesando...' : 'Marcar como pagada'}
+                    </button>
+                    <button
+                      onClick={() => (confirmingCancel ? handleLastSaleStatus('cancelled') : setConfirmingCancel(true))}
+                      disabled={isUpdatingStatus}
+                      className={`inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+                        confirmingCancel
+                          ? 'bg-rose-600 border-rose-600 text-white hover:bg-rose-700'
+                          : 'bg-white border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50'
+                      }`}
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      {confirmingCancel ? 'Confirmar' : 'Cancelar'}
+                    </button>
+                  </div>
+                )}
+
+                {confirmingCancel && !isSettled(lastSale.status) && (
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-rose-600">
+                    <span>Se devolverá el stock al inventario.</span>
+                    <button
+                      onClick={() => setConfirmingCancel(false)}
+                      className="font-semibold underline hover:text-rose-800"
+                    >
+                      No, volver
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Seleccionar cliente</label>
@@ -392,7 +511,7 @@ export default function SellingDashboard() {
                 onClick={handleCheckout}
                 className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg shadow-sm transition-all"
               >
-                {isSubmitting ? 'Procesando...' : 'Completar venta'}
+                {isSubmitting ? 'Procesando...' : 'Registrar venta (pendiente)'}
               </button>
             </div>
           </div>

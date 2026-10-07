@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const SaleService = require('../services/sale');
 const { HttpError } = require('../utils/httpError');
 const { parsePagination: parsePaginationQuery } = require('../utils/pagination');
+const { SALE_STATUSES } = require('../constants/sales');
 
 const saleService = new SaleService(pool);
 
@@ -76,6 +77,31 @@ function validateSalePayload(body) {
 }
 
 /**
+ * Validates the target status of a status-change request.
+ * Throws a 400 HttpError when the status is missing or unknown.
+ *
+ * @param {Object} body
+ * @returns {string} Normalized status (lowercase, trimmed)
+ */
+function validateStatusPayload(body) {
+  const status = body?.status;
+
+  if (typeof status !== 'string' || status.trim() === '') {
+    throw new HttpError(400, 'status es obligatorio');
+  }
+
+  const normalized = status.trim().toLowerCase();
+  if (!SALE_STATUSES.includes(normalized)) {
+    throw new HttpError(
+      400,
+      `status debe ser uno de: ${SALE_STATUSES.join(', ')}`
+    );
+  }
+
+  return normalized;
+}
+
+/**
  * Handles fetching all sales (paginated)
  */
 async function getAllSales(req, res, next) {
@@ -142,11 +168,32 @@ async function refundSale(req, res, next) {
   }
 }
 
+/**
+ * Handles moving a sale through its lifecycle (pending -> paid, ... -> cancelled)
+ */
+async function updateSaleStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: 'El parámetro del ID de la venta debe ser numérico' });
+    }
+
+    const status = validateStatusPayload(req.body);
+    const result = await saleService.updateSaleStatus(Number(id), status);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getAllSales,
   createSale,
   getSaleById,
   refundSale,
+  updateSaleStatus,
   validateSalePayload,
+  validateStatusPayload,
   parsePagination
 };

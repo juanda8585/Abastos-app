@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { validateSalePayload, parsePagination } = require('../src/controllers/sales');
+const { validateSalePayload, validateStatusPayload, parsePagination } = require('../src/controllers/sales');
 
 const validBody = {
   customer_id: 1,
@@ -55,6 +55,33 @@ test('validateSalePayload flags the offending item index', () => {
       }),
     /items\[1\]\.quantity_sold/
   );
+});
+
+test('validateStatusPayload normalizes a valid status', () => {
+  assert.equal(validateStatusPayload({ status: ' paid ' }), 'paid');
+  assert.equal(validateStatusPayload({ status: 'CANCELLED' }), 'cancelled');
+});
+
+test('validateStatusPayload rejects a missing or unknown status with a 400', () => {
+  const cases = [
+    [undefined, /status es obligatorio/],
+    [{}, /status es obligatorio/],
+    [{ status: '   ' }, /status es obligatorio/],
+    [{ status: 42 }, /status es obligatorio/],
+    [{ status: 'shipped' }, /status debe ser uno de/],
+    [{ status: 'pago' }, /status debe ser uno de/],
+  ];
+
+  for (const [body, messagePattern] of cases) {
+    assert.throws(
+      () => validateStatusPayload(body),
+      (error) => {
+        assert.equal(error.statusCode, 400, `expected 400 for ${JSON.stringify(body)}`);
+        assert.match(error.message, messagePattern);
+        return true;
+      }
+    );
+  }
 });
 
 test('parsePagination applies defaults and bounds', () => {

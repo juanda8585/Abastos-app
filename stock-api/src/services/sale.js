@@ -1,10 +1,45 @@
 const { HttpError, internalError } = require('../utils/httpError');
 const { safeRollback } = require('../utils/transaction');
+const {
+  SALE_STATUSES,
+  ALLOWED_TRANSITIONS,
+  RESTOCK_STATUSES,
+  TERMINAL_STATUSES,
+  STATUS_LABELS,
+} = require('../constants/sales');
 
 /** Default page size for sales history queries. */
 const DEFAULT_LIMIT = 100;
 /** Hard cap so a single request can never pull an unbounded result set. */
 const MAX_LIMIT = 500;
+
+/**
+ * Throws a 409 when a sale may not move from `currentStatus` to
+ * `targetStatus`. Unknown target statuses never reach this check: the
+ * service rejects them with a 400 before opening a transaction.
+ *
+ * The stored status stays in English; only the user-facing text is
+ * translated.
+ *
+ * @param {string} currentStatus
+ * @param {string} targetStatus
+ */
+function assertTransition(currentStatus, targetStatus) {
+  const label = (status) => STATUS_LABELS[status] || status;
+
+  if (TERMINAL_STATUSES.has(currentStatus)) {
+    throw new HttpError(409, `La venta ya fue ${label(currentStatus)}.`);
+  }
+  if (currentStatus === targetStatus) {
+    throw new HttpError(409, `La venta ya está ${label(targetStatus)}.`);
+  }
+  if (!ALLOWED_TRANSITIONS[currentStatus]?.includes(targetStatus)) {
+    throw new HttpError(
+      409,
+      `No se puede cambiar la venta de "${label(currentStatus)}" a "${label(targetStatus)}".`
+    );
+  }
+}
 
 /**
  * Service to handle sales and inventory transactions
@@ -16,6 +51,10 @@ class SaleService {
 
   /**
    * Creates a sale and deducts inventory inside a single transaction.
+   *
+   * The sale is stored as `pending`: stock is reserved right away and the
+   * cashier later moves it to `paid`, or cancels it, which hands the stock
+   * back (see `updateSaleStatus`).
    *
    * Stock is validated against the sum of all lines of a product (not line by
    * line), so repeated product lines can never collectively exceed the
@@ -71,7 +110,7 @@ class SaleService {
       // 2. Insert into sales table
       const saleQuery = `
         INSERT INTO sales (customer_id, employee_name, status)
-        VALUES ($1, $2, 'paid')
+        VALUES ($1, $2, 'pending')
         RETURNING id, customer_id, employee_name, status, sale_date, created_at;
       `;
       const saleResult = await client.query(saleQuery, [customer_id, employee_name]);
@@ -140,16 +179,26 @@ class SaleService {
   }
 
   /**
-   * Cancels/Refunds a sale and returns items back to stock.
+   * Moves a sale to a new status and restocks the items whenever the target
+   * status voids the sale (`cancelled` / `refunded`).
    *
-   * The sale row is locked first, so two concurrent refunds of the same sale
-   * cannot both restock. Stock rows are restored in ascending product id
-   * order, matching createSale's lock order.
+   * The sale row is locked first, so two concurrent status changes of the
+   * same sale cannot both restock. Stock rows are restored in ascending
+   * product id order, matching createSale's lock order.
    *
    * @param {number} saleId
-   * @returns {Promise<Object>}
+   * @param {string} targetStatus One of SALE_STATUSES
+   * @returns {Promise<Object>} Updated sale header
    */
-  async refundSale(saleId) {
+  async updateSaleStatus(saleId, targetStatus) {
+    // Rejected before opening a transaction: nothing to roll back yet.
+    if (!SALE_STATUSES.includes(targetStatus)) {
+      throw new HttpError(
+        400,
+        `Estado de venta no válido "${targetStatus}". Estados permitidos: ${SALE_STATUSES.join(', ')}.`
+      );
+    }
+
     const client = await this.pool.connect();
 
     try {
@@ -163,67 +212,90 @@ class SaleService {
       if (saleCheck.rows.length === 0) {
         throw new HttpError(404, `No se encontró la venta con ID ${saleId}.`);
       }
-      const saleStatus = saleCheck.rows[0].status;
-      if (saleStatus === 'refunded' || saleStatus === 'cancelled') {
-        // The stored status stays in English; only the user-facing text is translated.
-        const statusLabel = { refunded: 'reembolsada', cancelled: 'cancelada' }[saleStatus] || saleStatus;
-        throw new HttpError(409, `La venta ya fue ${statusLabel}.`);
+      const currentStatus = saleCheck.rows[0].status;
+      assertTransition(currentStatus, targetStatus);
+
+      // 2. Hand the reserved stock back when the sale is voided
+      if (RESTOCK_STATUSES.has(targetStatus)) {
+        await this.restoreStock(client, saleId);
       }
 
-      // 2. Fetch items to restock (stable lock order)
-      const itemsResult = await client.query(
-        `SELECT product_id, quantity_sold FROM sale_items WHERE sale_id = $1 ORDER BY product_id ASC`,
-        [saleId]
-      );
-
-      // 3. Return stock and log movement for each item
-      for (const item of itemsResult.rows) {
-        // movement_type has no 'refund' value, so the ledger entry uses
-        // 'adjustment' and reference_id ties it back to the refunded sale.
-        const movementQuery = `
-          INSERT INTO inventory_movements (product_id, quantity, type, reference_id)
-          VALUES ($1, $2, 'adjustment', $3);
-        `;
-        await client.query(movementQuery, [
-          item.product_id,
-          item.quantity_sold, // Positive quantity restores stock
-          saleId,
-        ]);
-
-        // Upsert so a product without a stock_levels row is recreated instead
-        // of silently losing the restock.
-        const stockQuery = `
-          INSERT INTO stock_levels (product_id, current_stock, updated_at)
-          VALUES ($1, $2, CURRENT_TIMESTAMP)
-          ON CONFLICT (product_id) DO UPDATE
-          SET current_stock = stock_levels.current_stock + EXCLUDED.current_stock,
-              updated_at = CURRENT_TIMESTAMP;
-        `;
-        await client.query(stockQuery, [item.product_id, item.quantity_sold]);
-      }
-
-      // 4. Update status to refunded
+      // 3. Persist the new status
       const updateSaleQuery = `
         UPDATE sales
-        SET status = 'refunded'
+        SET status = $2
         WHERE id = $1
         RETURNING id, customer_id, status, sale_date;
       `;
-      const updatedSale = await client.query(updateSaleQuery, [saleId]);
+      const updatedSale = await client.query(updateSaleQuery, [saleId, targetStatus]);
 
       await client.query('COMMIT');
       return updatedSale.rows[0];
     } catch (error) {
       await safeRollback(client);
-      console.error(`Error refunding sale ${saleId}:`, error);
+      console.error(`Error moving sale ${saleId} to status '${targetStatus}':`, error);
 
       if (error instanceof HttpError) {
         throw error;
       }
-      throw internalError('Failed to refund sale', error);
+      throw internalError('Failed to update sale status', error);
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Returns every line item of a sale to stock, inside the caller's
+   * transaction.
+   *
+   * @param {Object} client Transaction-bound pg client
+   * @param {number} saleId
+   */
+  async restoreStock(client, saleId) {
+    // 1. Fetch items to restock (stable lock order)
+    const itemsResult = await client.query(
+      `SELECT product_id, quantity_sold FROM sale_items WHERE sale_id = $1 ORDER BY product_id ASC`,
+      [saleId]
+    );
+
+    // 2. Return stock and log movement for each item
+    for (const item of itemsResult.rows) {
+      // movement_type has no 'refund'/'cancel' value, so the ledger entry uses
+      // 'adjustment' and reference_id ties it back to the voided sale.
+      const movementQuery = `
+        INSERT INTO inventory_movements (product_id, quantity, type, reference_id)
+        VALUES ($1, $2, 'adjustment', $3);
+      `;
+      await client.query(movementQuery, [
+        item.product_id,
+        item.quantity_sold, // Positive quantity restores stock
+        saleId,
+      ]);
+
+      // Upsert so a product without a stock_levels row is recreated instead
+      // of silently losing the restock.
+      const stockQuery = `
+        INSERT INTO stock_levels (product_id, current_stock, updated_at)
+        VALUES ($1, $2, CURRENT_TIMESTAMP)
+        ON CONFLICT (product_id) DO UPDATE
+        SET current_stock = stock_levels.current_stock + EXCLUDED.current_stock,
+            updated_at = CURRENT_TIMESTAMP;
+      `;
+      await client.query(stockQuery, [item.product_id, item.quantity_sold]);
+    }
+  }
+
+  /**
+   * Cancels/Refunds a sale and returns items back to stock.
+   *
+   * Kept as the dedicated endpoint for the `paid` -> `refunded` move; it is
+   * the same path used by `updateSaleStatus`.
+   *
+   * @param {number} saleId
+   * @returns {Promise<Object>}
+   */
+  async refundSale(saleId) {
+    return this.updateSaleStatus(saleId, 'refunded');
   }
 
   /**
